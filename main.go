@@ -8,6 +8,24 @@ import (
 	"fmt"
 )
 
+type Student struct {
+	ID       int     `json:"id"`
+	Username string  `json:"username"`
+	Grade    float64 `json:"grade"`
+	IsActive bool    `json:"is_active"`
+}
+
+func (s Student) GetInfo() string {
+	return fmt.Sprintf("ID: %d\nUsername: %s\nGrade: %f\nIsActive: %v", s.ID, s.Username, s.Grade, s.IsActive)
+}
+
+func (s *Student) UpdateGrade(grade float64) {
+	s.Grade = grade
+}
+
+func (s *Student) Activate()   { s.IsActive = true }
+func (s *Student) Deactivate() { s.IsActive = false }
+
 func main() {
 	// app := fiber.New()
 	// app.Get("/", func(c *fiber.Ctx) error {
@@ -62,6 +80,28 @@ func main() {
 	fmt.Println("a. update slice dengan pass by value \n", makanan)
 	updateSlice(&makanan, "Bakso")
 	fmt.Println("b. update slice dengan pass by pointer \n", makanan)
+
+	u := Student{
+		ID:       1,
+		Username: "joko_123",
+		Grade:    99.212,
+		IsActive: true,
+	}
+	fmt.Println(u.GetInfo())
+
+	newGrade := 80.12
+	u.UpdateGrade(newGrade)
+
+	fmt.Println("__Setelah di Update__\n",u.GetInfo())
+
+	u.Deactivate()
+
+	fmt.Println("__Setelah di Deactivate__\n",u.GetInfo())
+
+	u.Activate()
+
+	fmt.Println("__Setelah di Activate__\n",u.GetInfo())
+	
 }
 
 func swap(a, b *int) {
