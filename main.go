@@ -49,10 +49,12 @@ func main() {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
 	})
+
 	api := app.Group("/api/v1")
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return ok(c, "server berjalan", fiber.Map{"timestamp": time.Now()})
 	})
+
 	u := api.Group("/users", requireJSON)
 	u.Get("/", listUsers)
 	u.Get("/:id", getUser)
@@ -60,7 +62,16 @@ func main() {
 	u.Put("/:id", replaceUser)
 	u.Patch("/:id", patchUser)
 	u.Delete("/:id", deleteUser)
-	// Endpoint yang tidak dikenal
+	
+	s := api.Group("students", requireJSON)
+	s.Get("/", listStudents)
+	s.Get("/:id", getStudent)
+	s.Post("/", createStudent)
+	s.Put("/:id", replaceStudent)
+	s.Patch("/:id", patchStudent)
+	s.Delete("/:id", deleteStudent)
+
+
 	app.Use(func(c *fiber.Ctx) error {
 		return fail(c, fiber.StatusNotFound, "endpoint tidak ditemukan")
 	})

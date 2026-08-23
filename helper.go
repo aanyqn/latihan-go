@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"strconv"
 	"strings"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func ok(c *fiber.Ctx, message string, data any) error {
@@ -69,6 +70,16 @@ func parseListQuery(c *fiber.Ctx) ListQuery {
 	if raw := c.Query("is_active"); raw != "" {
 		if v, err := strconv.ParseBool(raw); err == nil {
 			q.isActive = &v
+		}
+	}
+	if raw := c.Query("grade_min"); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil {
+			q.GradeMin = &v
+		}
+	}
+	if raw := c.Query("grade_max"); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil {
+			q.GradeMax = &v
 		}
 	}
 	return q
