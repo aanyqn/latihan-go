@@ -58,10 +58,10 @@ func parseListQuery(c *fiber.Ctx) ListQuery {
 	if q.Limit < 1 {
 		q.Limit = 10
 	}
-	if q.Limit > 100 { // batas atas wajib ada
-		q.Limit = 100
+	if q.Limit > 50 {
+		q.Limit = 50
 	}
-	if !allowedSort[q.Sort] { // daftar putih, bukan daftar hitam
+	if !allowedSort[q.Sort] {
 		q.Sort = "id"
 	}
 	if q.Order != "desc" {

@@ -1,0 +1,10 @@
+# Kontrak API (API Contract) - Students
+
+| Metode | Endpoint | Parameter | Contoh Body Permintaan | Status yang Mungkin Dikembalikan | Contoh Respons |
+|---|---|---|---|---|---|
+| **GET** | `/api/v1/students/` | `page`, `limit`, `search`, `sort`, `order`, `is_active`, `grade_min`, `grade_max` | Tidak ada | `200 OK` | `{"success":true,"message":"Berhasil","data":[{"id":1,"username":"Andi","nim":"123","grade":85.5,"is_active":true}],"meta":{"page":1,"limit":10,"total":1,"total_pages":1}}` |
+| **POST** | `/api/v1/students/` | Tidak ada | `{"username":"Gina","nim":"98765"}` | `201 Created`, `400 Bad Request`, `409 Conflict`, `415 Unsupported Media Type`, `422 Unprocessable Entity` | `{"success":true,"message":"Data berhasil dibuat","data":{"id":2,"username":"Gina","nim":"98765","grade":0,"is_active":false}}` |
+| **GET** | `/api/v1/students/:id` | `id` (integer) | Tidak ada | `200 OK`, `400 Bad Request`, `404 Not Found` | `{"success":true,"message":"Data ditemukan","data":{"id":2,"username":"Gina","nim":"98765","grade":0,"is_active":false}}` |
+| **PUT** | `/api/v1/students/:id` | `id` (integer) | `{"username":"Gina Updated","nim":"98765","grade":90.0,"is_active":true}` | `200 OK`, `400 Bad Request`, `404 Not Found`, `422 Unprocessable Entity` | `{"success":true,"message":"Data berhasil diubah utuh","data":{"id":2,"username":"Gina Updated","nim":"98765","grade":90.0,"is_active":true}}` |
+| **PATCH** | `/api/v1/students/:id` | `id` (integer) | `{"is_active":true}` | `200 OK`, `400 Bad Request`, `404 Not Found`, `422 Unprocessable Entity` | `{"success":true,"message":"Data berhasil diperbarui","data":{"id":2,"username":"Gina","nim":"98765","grade":0,"is_active":true}}` |
+| **DELETE** | `/api/v1/students/:id` | `id` (integer) | Tidak ada | `204 No Content`, `400 Bad Request`, `404 Not Found` | Tidak ada response body |

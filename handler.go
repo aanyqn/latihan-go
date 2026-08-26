@@ -116,19 +116,20 @@ func createStudent(c *fiber.Ctx) error {
 	}
 	errs := map[string]string{}
 	req.Username = strings.TrimSpace(req.Username)
+	req.NIM = strings.TrimSpace(req.NIM)
 	if req.Username == "" {
 		errs["username"] = "wajib diisi"
 	}
 	if req.NIM == ""  {
 		errs["nim"] = "wajib diisi"
 	}
-	for _, s := range students {
-		if strings.EqualFold(s.Username, req.Username) || strings.EqualFold(s.NIM, req.NIM) {
-			errs["username"] = "NIM/Username sudah ada"
-		}
-	}
 	if len(errs) > 0 {
 		return failValidation(c, errs)
+	}
+	for _, s := range students {
+		if strings.EqualFold(s.Username, req.Username) || strings.EqualFold(s.NIM, req.NIM) {
+			return fail(c, fiber.StatusConflict, "NIM/Username sudah ada")
+		}
 	}
 	baru := Student{
 		ID:        nextID,
