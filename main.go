@@ -45,6 +45,9 @@ func main() {
 	userRepository := repository.NewUserRepository(pool)
 	userHandler := NewUserHandler(userRepository)
 
+	studentRepository := repository.NewStudentRepository(pool)
+	studentHandler := NewStudentHandler(studentRepository)
+
 	app := fiber.New(fiber.Config{
 		AppName: "Praktikum Backend Lanjut - Pertemuan 2",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -69,7 +72,19 @@ func main() {
 	api := app.Group("/api/v1")
 
 	api.Get("/health", func(c *fiber.Ctx) error {
-		return ok(c, "server berjalan", fiber.Map{"timestamp": time.Now()})
+		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(ctx); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Server berjalan, tapi database terputus",
+				"error":   err.Error(),
+			})
+		}
+		return ok(c, "server dan database berjalan normal", fiber.Map{
+			"timestamp": time.Now(),
+			"database":  "connected",
+		})
 	})
 
 	// u := api.Group("/users", requireJSON)
@@ -87,14 +102,22 @@ func main() {
 	// s.Put("/:id", replaceStudent)
 	// s.Patch("/:id", patchStudent)
 	// s.Delete("/:id", deleteStudent)
+	
+	s := api.Group("students", requireJSON)
+	s.Get("/", studentHandler.ListStudents)
+	s.Get("/:id", studentHandler.GetStudent)
+	s.Post("/", studentHandler.CreateStudent)
+	s.Put("/:id", studentHandler.ReplaceStudent)
+	s.Patch("/:id", studentHandler.PatchStudent)
+	s.Delete("/:id", studentHandler.DeleteStudent)
 
-	s := api.Group("users", requireJSON)
-	s.Get("/", userHandler.List)
-	s.Get("/:id", userHandler.Get)
-	s.Post("/", userHandler.Create)
-	s.Put("/:id", userHandler.Replace)
-	s.Patch("/:id", userHandler.Patch)
-	s.Delete("/:id", userHandler.Delete)
+	u := api.Group("users", requireJSON)
+	u.Get("/", userHandler.List)
+	u.Get("/:id", userHandler.Get)
+	u.Post("/", userHandler.Create)
+	u.Put("/:id", userHandler.Replace)
+	u.Patch("/:id", userHandler.Patch)
+	u.Delete("/:id", userHandler.Delete)
 
 	port := config.GetEnv("APP_PORT", "3000")
 	log.Fatal(app.Listen(":" + port))

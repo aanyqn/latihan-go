@@ -14,8 +14,16 @@ type UserHandler struct {
 	repo repository.UserRepository
 }
 
+type StudentHandler struct {
+	repo repository.StudentRepository
+}
+
 func NewUserHandler(repo repository.UserRepository) *UserHandler {
 	return &UserHandler{repo: repo}
+}
+
+func NewStudentHandler(repo repository.StudentRepository) *StudentHandler {
+	return &StudentHandler{repo: repo}
 }
 
 func terjemahkanError(c *fiber.Ctx, err error, pesanUmum string) error {
@@ -193,6 +201,158 @@ func (h *UserHandler) Delete(c *fiber.Ctx) error {
 
 	if err := h.repo.Delete(ctx, id); err != nil {
 		return terjemahkanError(c, err, "Failed to delete user")
+	}
+	return noContent(c)
+}
+
+func (h *StudentHandler) ListStudents(c *fiber.Ctx) error {
+	ctx, cancel := reqCtx(c)
+	defer cancel()
+
+	q := parseListQuery(c)
+
+	users, total, err := h.repo.FindAll(ctx, q)
+	if err != nil {
+		return fail(c, fiber.StatusInternalServerError, "Error fetching users")
+	}
+
+	totalPages := 0
+	if q.Limit > 0 {
+		totalPages = (total + q.Limit - 1) / q.Limit
+	}
+
+	return okList(c, "Successful fetching Students data", users, &model.Meta{
+		Page: q.Page, Limit: q.Limit, Total: total, TotalPages: totalPages,
+	})
+}
+
+func (h *StudentHandler) GetStudent(c *fiber.Ctx) error {
+	ctx, cancel := reqCtx(c)
+	defer cancel()
+
+	id, valid := paramID(c)
+	if !valid {
+		return fail(c, fiber.StatusBadRequest, "ID must be valid")
+	}
+
+	user, err := h.repo.FindByID(ctx, id)
+	if err != nil {
+		return terjemahkanError(c, err, "Fail to get student data")
+	}
+
+	return ok(c, "Student found!", user)
+}
+
+func (h *StudentHandler) CreateStudent(c *fiber.Ctx) error {
+	ctx, cancel := reqCtx(c)
+	defer cancel()
+
+	var req model.CreateStudentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fail(c, fiber.StatusBadRequest, "Body must be in valid JSON format!")
+	}
+
+	req.Username = strings.TrimSpace(req.Username)
+	req.NIM = strings.TrimSpace(req.NIM)
+
+	errs := map[string]string{}
+	if req.Username == "" {
+		errs["username"] = "must be filled"
+	}
+	if len(errs) > 0 {
+		return failValidation(c, errs)
+	}
+	baru, err := h.repo.Create(ctx, model.Student{
+		Username: req.Username,
+		NIM:    req.NIM,
+		Grade: *req.Grade,
+		IsActive: true,
+	})
+	if err != nil {
+		return terjemahkanError(c, err, "Failed to save user data")
+	}
+	return created(c, "User succesfully created", baru,
+		"/api/v1/users/"+strconv.Itoa(baru.ID))
+}
+
+func (h *StudentHandler) ReplaceStudent(c *fiber.Ctx) error {
+	ctx, cancel := reqCtx(c)
+	defer cancel()
+
+	id, valid := paramID(c)
+	if !valid {
+		return fail(c, fiber.StatusBadRequest, "ID must be valid!")
+	}
+	var req model.ReplaceStudentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fail(c, fiber.StatusBadRequest, "Body must be valid in JSON format")
+	}
+	errs := map[string]string{}
+	if strings.TrimSpace(req.Username) == "" {
+		errs["username"] = "must be filled"
+	}
+	if len(errs) > 0 {
+		return failValidation(c, errs)
+	}
+
+	hasil, err := h.repo.Update(ctx, model.Student{
+		ID: id, Username: req.Username, NIM: req.NIM, Grade: *req.Grade, IsActive: req.IsActive,
+	})
+	if err != nil {
+		return terjemahkanError(c, err, "Failed to update student")
+	}
+
+	return ok(c, "Student data succesfully replaced", hasil)
+}
+
+func (h *StudentHandler) PatchStudent(c *fiber.Ctx) error {
+	ctx, cancel := reqCtx(c)
+	defer cancel()
+
+	id, valid := paramID(c)
+	if !valid {
+		return fail(c, fiber.StatusBadRequest, "ID must be valid!")
+	}
+
+	var req model.PatchStudentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fail(c, fiber.StatusBadRequest, "Body must be in valid JSON format")
+	}
+	if req.Username == nil && req.NIM == nil && req.Grade == nil && req.IsActive == nil {
+		return fail(c, fiber.StatusBadRequest, "No field is changed")
+	}
+
+	saatIni, err := h.repo.FindByID(ctx, id)
+	if err != nil {
+		return terjemahkanError(c, err, "Failed to fetch student")
+	}
+	if req.Username != nil {
+		if strings.TrimSpace(*req.Username) == "" {
+			return failValidation(c, map[string]string{"username": "can't be empty"})
+		}
+		saatIni.Username = *req.Username
+	}
+	if req.IsActive != nil {
+		saatIni.IsActive = *req.IsActive
+	}
+	hasil, err := h.repo.Update(ctx, saatIni)
+	if err != nil {
+		return terjemahkanError(c, err, "Failed to update student")
+	}
+	return ok(c, "student successfuly patch updated", hasil)
+}
+
+func (h *StudentHandler) DeleteStudent(c *fiber.Ctx) error {
+	ctx, cancel := reqCtx(c)
+	defer cancel()
+
+	id, valid := paramID(c)
+	if !valid {
+		return fail(c, fiber.StatusBadRequest, "Failed to delete student")
+	}
+
+	if err := h.repo.Delete(ctx, id); err != nil {
+		return terjemahkanError(c, err, "Failed to delete student")
 	}
 	return noContent(c)
 }
