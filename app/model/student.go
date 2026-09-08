@@ -19,10 +19,10 @@ type CreateStudentRequest struct {
 }
 
 type ReplaceStudentRequest struct {
-	Username string   `json:"username"`
-	NIM      string   `json:"nim"`
+	Username *string   `json:"username"`
+	NIM      *string   `json:"nim"`
 	Grade    *float64 `json:"grade"`
-	IsActive bool     `json:"is_active"`
+	IsActive *bool     `json:"is_active"`
 }
 
 type PatchStudentRequest struct {

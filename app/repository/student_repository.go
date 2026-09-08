@@ -5,16 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"latihan-fiber/app/model"
+	"latihan-fiber/helper"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+
 type StudentRepository interface {
-	FindAll(ctx context.Context, q model.ListQuery) ([]model.Student, int, error)
+	FindAll(ctx context.Context, q helper.ListQuery) ([]model.Student, int, error)
 	FindByID(ctx context.Context, id int) (model.Student, error)
-	Create(ctx context.Context, u model.Student) (model.Student, error)
-	Update(ctx context.Context, u model.Student) (model.Student, error)
+	Create(ctx context.Context, s model.Student) (model.Student, error)
+	Update(ctx context.Context, s model.Student) (model.Student, error)
 	Delete(ctx context.Context, id int) error
 }
 
@@ -33,7 +35,7 @@ func NewStudentRepository(pool *pgxpool.Pool) StudentRepository {
 	return &studentPostgreRepository{pool: pool}
 }
 
-func buildFilters(q model.ListQuery) (string, []any) {
+func buildFilters(q helper.ListQuery) (string, []any) {
 	where := " WHERE 1 = 1"
 	args := []any{}
 	if q.Search != "" {
@@ -49,7 +51,7 @@ func buildFilters(q model.ListQuery) (string, []any) {
 }
 
 func (r *studentPostgreRepository) FindAll(
-	ctx context.Context, q model.ListQuery,
+	ctx context.Context, q helper.ListQuery,
 ) ([]model.Student, int, error) {
 	where, args := buildFilter(q)
 
@@ -77,12 +79,12 @@ func (r *studentPostgreRepository) FindAll(
 	defer rows.Close()
 	hasil := []model.Student{}
 	for rows.Next() {
-		var u model.Student
-		if err := rows.Scan(&u.ID, &u.Username, &u.NIM,
-			&u.IsActive, &u.CreatedAt); err != nil {
+		var s model.Student
+		if err := rows.Scan(&s.ID, &s.Username, &s.NIM,
+			&s.IsActive, &s.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("Student rows: %w", err)
 		}
-		hasil = append(hasil, u)
+		hasil = append(hasil, s)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("Query output: %w", err)
@@ -93,47 +95,47 @@ func (r *studentPostgreRepository) FindAll(
 func (r *studentPostgreRepository) FindByID(
 	ctx context.Context, id int,
 ) (model.Student, error) {
-	var u model.Student
+	var s model.Student
 	err := r.pool.QueryRow(ctx,
 		`SELECT id, username, nim, is_active, created_at
 		FROM students WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Username, &u.NIM, &u.IsActive, &u.CreatedAt)
+	).Scan(&s.ID, &s.Username, &s.NIM, &s.IsActive, &s.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
 		}
 		return model.Student{}, fmt.Errorf("Get Student: %w", err)
 	}
-	return u, nil
+	return s, nil
 }
 
 func (r *studentPostgreRepository) Create(
-	ctx context.Context, u model.Student,
+	ctx context.Context, s model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
 		`INSERT INTO students (username, nim, grade, is_active)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at`,
-		u.Username, u.NIM, u.Grade, u.IsActive,
-	).Scan(&u.ID, &u.CreatedAt)
+		s.Username, s.NIM, s.Grade, s.IsActive,
+	).Scan(&s.ID, &s.CreatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return model.Student{}, ErrDuplicate
 		}
 		return model.Student{}, fmt.Errorf("Saving Student: %w", err)
 	}
-	return u, nil
+	return s, nil
 }
 
 func (r *studentPostgreRepository) Update(
-	ctx context.Context, u model.Student,
+	ctx context.Context, s model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-		`UPDATE students SET username = $1, nim = $2, is_active = $3
-		WHERE id = $4
+		`UPDATE students SET username = $1, nim = $2, is_active = $3, grade=$4
+		WHERE id = $5
 		RETURNING id, username, nim, is_active, created_at`,
-		u.Username, u.NIM, u.IsActive, u.ID,
-	).Scan(&u.ID, &u.Username, &u.NIM, &u.IsActive, &u.CreatedAt)
+		s.Username, s.NIM, s.IsActive, s.Grade, s.ID,
+	).Scan(&s.ID, &s.Username, &s.NIM, &s.IsActive, &s.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
@@ -143,7 +145,7 @@ func (r *studentPostgreRepository) Update(
 		}
 		return model.Student{}, fmt.Errorf("Update student: %w", err)
 	}
-	return u, nil
+	return s, nil
 }
 
 func (r *studentPostgreRepository) Delete(ctx context.Context, id int) error {

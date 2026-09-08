@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"latihan-fiber/app/model"
+	"latihan-fiber/helper"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -17,7 +18,7 @@ var (
 )
 
 type UserRepository interface {
-	FindAll(ctx context.Context, q model.ListQuery) ([]model.User, int, error)
+	FindAll(ctx context.Context, q helper.ListQuery) ([]model.User, int, error)
 	FindByID(ctx context.Context, id int) (model.User, error)
 	Create(ctx context.Context, u model.User) (model.User, error)
 	Update(ctx context.Context, u model.User) (model.User, error)
@@ -39,7 +40,7 @@ func NewUserRepository(pool *pgxpool.Pool) UserRepository {
 	return &userPostgresRepository{pool: pool}
 }
 
-func buildFilter(q model.ListQuery) (string, []any) {
+func buildFilter(q helper.ListQuery) (string, []any) {
 	where := " WHERE 1 = 1"
 	args := []any{}
 	if q.Search != "" {
@@ -55,7 +56,7 @@ func buildFilter(q model.ListQuery) (string, []any) {
 }
 
 func (r *userPostgresRepository) FindAll(
-	ctx context.Context, q model.ListQuery,
+	ctx context.Context, q helper.ListQuery,
 ) ([]model.User, int, error) {
 	where, args := buildFilter(q)
 
