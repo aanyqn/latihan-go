@@ -1,27 +1,24 @@
 package config
 
 import (
-	"latihan-fiber/app/handler"
-	"latihan-fiber/app/service/user"
 	"latihan-fiber/helper"
 	"latihan-fiber/middleware"
 	"latihan-fiber/route"
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewApp(
-	logger *slog.Logger, pool *pgxpool.Pool, userService *user.UserService, studentHandler *handler.StudentHandler,
+	logger *slog.Logger, deps route.Dependencies,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      GetEnv("APP_NAME", "Prak BE Lanjut"),
 		ErrorHandler: newErrorHandler(logger),
 	})
 
-	middleware.Register(app, logger)
-	route.Register(app, pool, userService, studentHandler)
+	middleware.Register(app, logger, GetEnv("ALLOWED_ORIGINS", ""))
+	route.Register(app, deps)
 
 	app.Use(func(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusNotFound, "No endpoints found")

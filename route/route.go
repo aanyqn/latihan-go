@@ -3,6 +3,8 @@ package route
 import (
 	"context"
 	"latihan-fiber/app/handler"
+	// "latihan-fiber/app/service/achievement"
+	"latihan-fiber/app/service/auth"
 	"latihan-fiber/app/service/user"
 	"latihan-fiber/helper"
 	"latihan-fiber/middleware"
@@ -12,26 +14,45 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Register(app *fiber.App, pool *pgxpool.Pool, userService *user.UserService, studentHandler *handler.StudentHandler) {
+type Dependencies struct {
+	Pool        *pgxpool.Pool
+	JWT         *helper.JWTManager
+	UserService *user.UserService
+	AuthService *auth.AuthService
+	StudentHandler *handler.StudentHandler
+}
+
+func Register(app *fiber.App, deps Dependencies) {
 	api := app.Group("/api/v1")
 
-	api.Get("/health", healthCheck(pool))
+	api.Get("/health", healthCheck(deps.Pool))
 
-	users := api.Group("/users", middleware.RequireJSON)
-	users.Get("/", userService.List)
-	users.Get("/:id", userService.Get)
-	users.Post("/", userService.Create)
-	users.Put("/:id", userService.Replace)
-	users.Patch("/:id", userService.Patch)
-	users.Delete("/:id", userService.Delete)
+	auth := api.Group("/auth", middleware.RequireJSON)
+	auth.Post("/register", deps.AuthService.Register)
+	auth.Post("/login", middleware.LoginRateLimiter(), deps.AuthService.Login)
+	auth.Post("/refresh", deps.AuthService.Refresh)
+	auth.Post("/logout", deps.AuthService.Logout)
+	auth.Get("/me", middleware.RequireAuth(deps.JWT), deps.AuthService.Me)
+
+	users := api.Group("/users",
+		middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+	users.Get("/", deps.UserService.List)
+	users.Get("/:id", deps.UserService.Get)
+	users.Post("/", deps.UserService.Create)
+	users.Put("/:id", deps.UserService.Replace)
+	users.Patch("/:id", deps.UserService.Patch)
+	users.Delete("/:id", deps.UserService.Delete)
 
 	student := api.Group("/students", middleware.RequireJSON)
-	student.Get("/", studentHandler.List)
-	student.Get("/:id", studentHandler.Get)
-	student.Post("/", studentHandler.Create)
-	student.Put("/:id", studentHandler.Replace)
-	student.Patch("/:id", studentHandler.Patch)
-	student.Delete("/:id", studentHandler.Delete)
+	student.Get("/", deps.StudentHandler.List)
+	student.Get("/:id", deps.StudentHandler.Get)
+	student.Post("/", deps.StudentHandler.Create)
+	student.Put("/:id", deps.StudentHandler.Replace)
+	student.Patch("/:id", deps.StudentHandler.Patch)
+	student.Delete("/:id", deps.StudentHandler.Delete)
+
+	// achievement := api.Group("/achievements", middleware.RequireJSON)
+	// achievement.Get("/:id", achievementService.Get)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {

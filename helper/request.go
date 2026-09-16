@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -17,10 +18,11 @@ type ListQuery struct {
 	IsActive *bool
 	GradeMin *float64
 	GradeMax *float64
+	Filter   *int64
 }
 
 func (q ListQuery) Offset() int {
- return (q.Page - 1) * q.Limit
+	return (q.Page - 1) * q.Limit
 }
 
 func RequestContext(c *fiber.Ctx) (context.Context, context.CancelFunc) {
@@ -75,6 +77,11 @@ func ParseListQuery(c *fiber.Ctx) ListQuery {
 	if raw := c.Query("grade_max"); raw != "" {
 		if v, err := strconv.ParseFloat(raw, 64); err == nil {
 			q.GradeMax = &v
+		}
+	}
+	if raw := c.Query("filter"); raw != "" {
+		if v, err := strconv.ParseInt(raw, 64, 64); err == nil {
+			q.Filter = &v
 		}
 	}
 	return q
