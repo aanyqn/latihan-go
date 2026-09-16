@@ -15,6 +15,7 @@ func NewApp(
 	app := fiber.New(fiber.Config{
 		AppName:      GetEnv("APP_NAME", "Prak BE Lanjut"),
 		ErrorHandler: newErrorHandler(logger),
+		BodyLimit:    1 * 1024 * 1024,
 	})
 
 	middleware.Register(app, logger, GetEnv("ALLOWED_ORIGINS", ""))
