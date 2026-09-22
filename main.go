@@ -58,15 +58,26 @@ func main() {
 	tokenRepository := repository.NewTokenRepository(pool)
 	userService := user.NewUserService(userRepository)
 	studentHandler := handler.NewStudentHandler(studentService)
+	roleRepository := repository.NewRoleRepository(pool)
+
+	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
+	if err != nil {
+		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	permissions := helper.NewPermissionSet(rawPermissions)
+	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
+
 	authService := auth.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
 	app := config.NewApp(logger, route.Dependencies{
-		Pool:        pool,
-		JWT:         jwtManager,
-		UserService: userService,
-		AuthService: authService,
+		Pool:           pool,
+		Permissions:    permissions,
+		JWT:            jwtManager,
+		UserService:    userService,
+		AuthService:    authService,
 		StudentHandler: studentHandler,
 	})
 

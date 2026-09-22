@@ -50,9 +50,6 @@ func bearerToken(c *fiber.Ctx) (string, error) {
 	return token, nil
 }
 
-// LoginRateLimiter membatasi jumlah percobaan login dari satu alamat IP.
-// Tanpa pembatasan ini, penyerang dapat mencoba ribuan password per menit
-// (serangan brute force) tanpa hambatan apa pun.
 func LoginRateLimiter() fiber.Handler {
 	return limiter.New(limiter.Config{
 		Max:        5,

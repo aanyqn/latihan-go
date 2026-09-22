@@ -16,6 +16,7 @@ import (
 
 type Dependencies struct {
 	Pool        *pgxpool.Pool
+	Permissions *helper.PermissionSet
 	JWT         *helper.JWTManager
 	UserService *user.UserService
 	AuthService *auth.AuthService

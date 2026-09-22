@@ -101,6 +101,7 @@ func (s *AuthService) Login(c *fiber.Ctx) error {
 	}
 	return helper.Success(c, fiber.StatusOK, "login berhasil", pair)
 }
+
 func (s *AuthService) Refresh(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

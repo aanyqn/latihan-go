@@ -4,23 +4,51 @@ Repositori ini berisi backend REST API menggunakan **Golang (Fiber)** dan **Post
 
 ## Daftar Isi
 
-- [Kontrak API - Students](#kontrak-api-api-contract---students)
+- [Kontrak API](#kontrak-api-api-contract)
+  - [1. Students](#1-students)
+  - [2. Users](#2-users)
+  - [3. Auth](#3-auth-authentication)
 - [Instalasi](#instalasi)
   - [1. Variabel Environment (.env)](#1-variabel-environment-env)
   - [2. Database](#2-database)
 
 ---
 
-## Kontrak API (API Contract) - Students
+## Kontrak API (API Contract)
 
-| Metode | Endpoint | Parameter | Contoh Body Permintaan | Status yang Mungkin Dikembalikan | Contoh Respons |
+> **Catatan Keamanan:** Mulai dari penyelesaian Tugas 5, seluruh endpoint pada bagian **Students** dan **Users** membutuhkan header **`Authorization: Bearer <access_token>`** yang valid. Jika token tidak disertakan, kedaluwarsa, atau tidak valid, API akan mengembalikan status `401 Unauthorized`.
+
+### 1. Students
+
+| Metode | Endpoint | Parameter / Query | Contoh Body Permintaan | Status yang Mungkin Dikembalikan | Contoh Respons (Sukses) |
 |---|---|---|---|---|---|
-| **GET** | `/api/v1/students/` | `page`, `limit`, `search`, `sort`, `order`, `is_active`, `grade_min`, `grade_max` | Tidak ada | `200 OK` | `{"success":true,"message":"Berhasil","data":[{"id":1,"username":"Andi","nim":"123","grade":85.5,"is_active":true}],"meta":{"page":1,"limit":10,"total":1,"total_pages":1}}` |
-| **POST** | `/api/v1/students/` | Tidak ada | `{"username":"Gina","nim":"98765"}` | `201 Created`, `400 Bad Request`, `409 Conflict`, `415 Unsupported Media Type`, `422 Unprocessable Entity` | `{"success":true,"message":"Data berhasil dibuat","data":{"id":2,"username":"Gina","nim":"98765","grade":0,"is_active":false}}` |
-| **GET** | `/api/v1/students/:id` | `id` (integer) | Tidak ada | `200 OK`, `400 Bad Request`, `404 Not Found` | `{"success":true,"message":"Data ditemukan","data":{"id":2,"username":"Gina","nim":"98765","grade":0,"is_active":false}}` |
-| **PUT** | `/api/v1/students/:id` | `id` (integer) | `{"username":"Gina Updated","nim":"98765","grade":90.0,"is_active":true}` | `200 OK`, `400 Bad Request`, `404 Not Found`, `422 Unprocessable Entity` | `{"success":true,"message":"Data berhasil diubah utuh","data":{"id":2,"username":"Gina Updated","nim":"98765","grade":90.0,"is_active":true}}` |
-| **PATCH** | `/api/v1/students/:id` | `id` (integer) | `{"is_active":true}` | `200 OK`, `400 Bad Request`, `404 Not Found`, `422 Unprocessable Entity` | `{"success":true,"message":"Data berhasil diperbarui","data":{"id":2,"username":"Gina","nim":"98765","grade":0,"is_active":true}}` |
-| **DELETE** | `/api/v1/students/:id` | `id` (integer) | Tidak ada | `204 No Content`, `400 Bad Request`, `404 Not Found` | Tidak ada response body |
+| **GET** | `/api/v1/students/` | `page`, `limit`, `search`, `sort`, `order`, `is_active`, `grade_min`, `grade_max` | Tidak ada | `200 OK`, `401 Unauthorized` | `{"success":true,"message":"Berhasil","data":[{"id":1,"username":"Andi","nim":"123","grade":85.5,"is_active":true}],"meta":{...}}` |
+| **POST** | `/api/v1/students/` | Tidak ada | `{"username":"Gina","nim":"98765"}` | `201 Created`, `400`, `401`, `409`, `422` | `{"success":true,"message":"Data berhasil dibuat","data":{"id":2,...}}` |
+| **GET** | `/api/v1/students/:id` | `id` (integer) | Tidak ada | `200 OK`, `400`, `401`, `404` | `{"success":true,"message":"Data ditemukan","data":{"id":2,...}}` |
+| **PUT** | `/api/v1/students/:id` | `id` (integer) | `{"username":"Gina Updated","nim":"98765","grade":90.0,"is_active":true}` | `200 OK`, `400`, `401`, `404`, `422` | `{"success":true,"message":"Data berhasil diubah utuh","data":{...}}` |
+| **PATCH** | `/api/v1/students/:id` | `id` (integer) | `{"is_active":true}` | `200 OK`, `400`, `401`, `404`, `422` | `{"success":true,"message":"Data berhasil diperbarui","data":{...}}` |
+| **DELETE**| `/api/v1/students/:id` | `id` (integer) | Tidak ada | `204 No Content`, `400`, `401`, `404` | Tidak ada response body |
+
+### 2. Users
+
+| Metode | Endpoint | Parameter / Query | Contoh Body Permintaan | Status yang Mungkin Dikembalikan | Contoh Respons (Sukses) |
+|---|---|---|---|---|---|
+| **GET** | `/api/v1/users/` | `page`, `limit`, `search`, `sort`, `order`, `is_active` | Tidak ada | `200 OK`, `401 Unauthorized` | `{"success":true,"message":"Berhasil","data":[{"id":1,"username":"budi","email":"budi@ex.com","is_active":true}],"meta":{...}}` |
+| **POST** | `/api/v1/users/` | Tidak ada | `{"username":"budi","email":"budi@ex.com","password":"Password1"}` | `201 Created`, `400`, `401`, `409`, `422` | `{"success":true,"message":"Data berhasil dibuat","data":{"id":2,...}}` |
+| **GET** | `/api/v1/users/:id` | `id` (integer) | Tidak ada | `200 OK`, `400`, `401`, `404` | `{"success":true,"message":"Data ditemukan","data":{"id":2,...}}` |
+| **PUT** | `/api/v1/users/:id` | `id` (integer) | `{"username":"budi ubah","email":"baru@ex.com","is_active":false}` | `200 OK`, `400`, `401`, `404`, `422` | `{"success":true,"message":"Data berhasil diubah utuh","data":{...}}` |
+| **PATCH** | `/api/v1/users/:id` | `id` (integer) | `{"is_active":false}` | `200 OK`, `400`, `401`, `404`, `422` | `{"success":true,"message":"Data berhasil diperbarui","data":{...}}` |
+| **DELETE**| `/api/v1/users/:id` | `id` (integer) | Tidak ada | `204 No Content`, `400`, `401`, `404` | Tidak ada response body |
+
+### 3. Auth (Authentication)
+
+| Metode | Endpoint | Contoh Body Permintaan | Deskripsi & Status Response |
+|---|---|---|---|
+| **POST** | `/api/v1/auth/register` | `{"username":"admin","email":"a@a.com","password":"Password1"}` | Mendaftar user baru (role selalu "user"). (`201`, `400`, `409`, `422`) |
+| **POST** | `/api/v1/auth/login` | `{"username":"admin","password":"Password1"}` | Login dan mendapatkan pasangan token. Max 5 percobaan/menit. (`200`, `400`, `401`, `403`, `429`) |
+| **POST** | `/api/v1/auth/refresh` | `{"refresh_token":"<token>"}` | Memperbarui Access Token. (`200`, `400`, `401`) |
+| **POST** | `/api/v1/auth/logout` | `{"refresh_token":"<token>"}` | Mencabut *refresh token* dari database. (`200`) |
+| **GET**  | `/api/v1/auth/me` | *Butuh Header Bearer Token* | Mengambil data profil user yang sedang diakses saat ini. (`200`, `401`) |
 
 ---
 
