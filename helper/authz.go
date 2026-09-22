@@ -13,6 +13,9 @@ func NewPermissionSet(raw map[string][]string) *PermissionSet {
 
 	for role, permissions := range raw {
 		set := make(map[string]struct{}, len(permissions))
+		for _, perm := range permissions {
+			set[perm] = struct{}{}
+		}
 		byRole[role] = set
 	}
 
@@ -20,7 +23,7 @@ func NewPermissionSet(raw map[string][]string) *PermissionSet {
 }
 
 func (p *PermissionSet) Can(role, permission string) bool {
-	if p == nil {
+	if p == nil || p.byRole == nil {
 		return false
 	}
 	permissions, ok := p.byRole[role]

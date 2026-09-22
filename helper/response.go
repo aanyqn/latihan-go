@@ -8,35 +8,35 @@ func Success(c *fiber.Ctx, status int, message string, data any) error {
 	return c.Status(status).JSON(WebResponse{
 		Success: true,
 		Message: message,
-		Data: data,
+		Data:    data,
 	})
 }
 
 func SuccessList(c *fiber.Ctx, message string, data any, meta *Meta) error {
- return c.Status(fiber.StatusOK).JSON(WebResponse{
- Success: true, Message: message, Data: data, Meta: meta,
- })
+	return c.Status(fiber.StatusOK).JSON(WebResponse{
+		Success: true, Message: message, Data: data, Meta: meta,
+	})
 }
 
 func Created(c *fiber.Ctx, message string, data any, location string) error {
- c.Set("Location", location)
- return c.Status(fiber.StatusCreated).JSON(WebResponse{
- Success: true, Message: message, Data: data,
- })
+	c.Set("Location", location)
+	return c.Status(fiber.StatusCreated).JSON(WebResponse{
+		Success: true, Message: message, Data: data,
+	})
 }
 
 func NoContent(c *fiber.Ctx) error {
- return c.SendStatus(fiber.StatusNoContent)
+	return c.SendStatus(fiber.StatusNoContent)
 }
 func Fail(c *fiber.Ctx, status int, message string) error {
- return c.Status(status).JSON(WebResponse{
- Success: false, Message: message,
- })
+	return c.Status(status).JSON(WebResponse{
+		Success: false, Message: message,
+	})
 }
 func FailValidation(c *fiber.Ctx, errs map[string]string) error {
- return c.Status(fiber.StatusUnprocessableEntity).JSON(WebResponse{
- Success: false, Message: "validasi gagal", Errors: errs,
- })
+	return c.Status(fiber.StatusUnprocessableEntity).JSON(WebResponse{
+		Success: false, Message: "Failed validation", Errors: errs,
+	})
 }
 
 type WebResponse struct {

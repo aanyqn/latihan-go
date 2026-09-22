@@ -19,7 +19,7 @@ func NewRoleRepository(pool *pgxpool.Pool) RoleRepository {
 
 func (r *rolePostgresRepository) LoadPermissions(ctx context.Context) (map[string][]string, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT r.name, COALESCE(rp.permission_name, '') FROM roles r LEFT JOIN role_permissions rp ON r.roles = rp.role_name ORDER BY r.name, rp.permission_name`)
+		`SELECT r.name, COALESCE(rp.permissions_name, '') FROM roles r LEFT JOIN role_permissions rp ON r.name = rp.role_name ORDER BY r.name, rp.permissions_name`)
 	if err != nil {
 		return nil, fmt.Errorf("Get permission: %w", err)
 	}

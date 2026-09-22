@@ -20,6 +20,7 @@ type AuthService struct {
 	tokens     repository.TokenRepository
 	jwt        *helper.JWTManager
 	refreshTTL time.Duration
+	perms *helper.PermissionSet
 }
 
 func NewAuthService(
@@ -159,7 +160,10 @@ func (s *AuthService) Me(c *fiber.Ctx) error {
 	if err != nil {
 		return helper.Fail(c, fiber.StatusUnauthorized, "user tidak ditemukan")
 	}
-	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", user)
+	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", fiber.Map{
+		"user": user,
+		"permissions": s.perms.PermissionsOf(user.Role),
+	})
 }
 
 func (s *AuthService) issueTokenPair(

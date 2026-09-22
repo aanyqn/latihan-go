@@ -15,11 +15,11 @@ import (
 )
 
 type Dependencies struct {
-	Pool        *pgxpool.Pool
-	Permissions *helper.PermissionSet
-	JWT         *helper.JWTManager
-	UserService *user.UserService
-	AuthService *auth.AuthService
+	Pool           *pgxpool.Pool
+	Permissions    *helper.PermissionSet
+	JWT            *helper.JWTManager
+	UserService    *user.UserService
+	AuthService    *auth.AuthService
 	StudentHandler *handler.StudentHandler
 }
 
@@ -37,12 +37,15 @@ func Register(app *fiber.App, deps Dependencies) {
 
 	users := api.Group("/users",
 		middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
-	users.Get("/", deps.UserService.List)
+
+	perms := deps.Permissions
+	users.Get("/", middleware.RequirePermission(perms, "user:list"), deps.UserService.List)
+	users.Post("/", middleware.RequirePermission(perms, "user:update:any"), deps.UserService.Create)
+	users.Delete("/:id", middleware.RequirePermission(perms, "user:delete"), deps.UserService.Delete)
+	users.Patch("/:id/role", middleware.RequirePermission(perms, "role:assign"), deps.UserService.AssignRole)
 	users.Get("/:id", deps.UserService.Get)
-	users.Post("/", deps.UserService.Create)
 	users.Put("/:id", deps.UserService.Replace)
 	users.Patch("/:id", deps.UserService.Patch)
-	users.Delete("/:id", deps.UserService.Delete)
 
 	student := api.Group("/students", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
 	student.Get("/", deps.StudentHandler.List)

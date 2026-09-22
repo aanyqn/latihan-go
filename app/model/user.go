@@ -30,3 +30,7 @@ type PatchUserRequest struct {
 	Email    *string `json:"email,omitempty"`
 	IsActive *bool   `json:"is_active,omitempty"`
 }
+
+type AssignRoleRequest struct {
+	Role string `json:"role"`
+}

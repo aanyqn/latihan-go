@@ -22,6 +22,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id int) (model.User, error)
 	Create(ctx context.Context, u model.User) (model.User, error)
 	Update(ctx context.Context, u model.User) (model.User, error)
+	UpdateRole(ctx context.Context, id int, role string) (model.User, error)
 	Delete(ctx context.Context, id int) error
 	FindByUsername(ctx context.Context, username string) (model.User, error)
 }
@@ -71,7 +72,7 @@ func (r *userPostgresRepository) FindAll(
 		arah = "DESC"
 	}
 	sqlText := fmt.Sprintf(
-		`SELECT id, username, email, password, is_active, created_at
+		`SELECT id, username, email, password, is_active, created_at, role
 		FROM users %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d`,
@@ -87,7 +88,7 @@ func (r *userPostgresRepository) FindAll(
 	for rows.Next() {
 		var u model.User
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Password,
-			&u.IsActive, &u.CreatedAt); err != nil {
+			&u.IsActive, &u.CreatedAt, &u.Role); err != nil {
 			return nil, 0, fmt.Errorf("User rows: %w", err)
 		}
 		hasil = append(hasil, u)
@@ -103,9 +104,9 @@ func (r *userPostgresRepository) FindByID(
 ) (model.User, error) {
 	var u model.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, password, is_active, created_at
+		`SELECT id, username, email, password, is_active, created_at, role
  FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.IsActive, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.IsActive, &u.CreatedAt, &u.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.User{}, ErrNotFound
@@ -139,9 +140,9 @@ func (r *userPostgresRepository) Update(
 	err := r.pool.QueryRow(ctx,
 		`UPDATE users SET username = $1, email = $2, is_active = $3
 		WHERE id = $4
-		RETURNING id, username, email, password, is_active, created_at`,
+		RETURNING id, username, email, password, is_active, created_at, role`,
 		u.Username, u.Email, u.IsActive, u.ID,
-	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.IsActive, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.IsActive, &u.CreatedAt, &u.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.User{}, ErrNotFound
@@ -163,6 +164,22 @@ func (r *userPostgresRepository) Delete(ctx context.Context, id int) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *userPostgresRepository) UpdateRole(
+	ctx context.Context, id int, role string,
+) (model.User, error) {
+	u := model.User{}
+	err := r.pool.QueryRow(ctx,
+		"UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role",
+		role, id).Scan(&u.ID, &u.Username, &u.Email, &u.Role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return u, ErrNotFound
+		}
+		return u, fmt.Errorf("Change role user: %w", err)
+	}
+	return u, nil
 }
 
 func isUniqueViolation(err error) bool {

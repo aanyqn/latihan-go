@@ -8,15 +8,18 @@ import (
 	"strconv"
 	"strings"
 
+	"latihan-fiber/app/service/authz"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 type UserService struct {
-	repo repository.UserRepository
+	repo  repository.UserRepository
+	perms *helper.PermissionSet
 }
 
-func NewUserService(repo repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+func NewUserService(repo repository.UserRepository, perms *helper.PermissionSet) *UserService {
+	return &UserService{repo: repo, perms: perms}
 }
 
 func (h *UserService) List(c *fiber.Ctx) error {
@@ -44,9 +47,28 @@ func (h *UserService) Get(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	targetID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return helper.Fail(c, fiber.StatusBadRequest, "Invalid ID")
+	}
+
+	if current.Role == "user" && current.UserID != targetID {
+		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	}
+
 	id, valid := helper.ParamID(c)
 	if !valid {
 		return helper.Fail(c, fiber.StatusBadRequest, "ID must be valid")
+	}
+
+	if !authz.CanAccessUser(current, id, h.perms, "user:read:any") {
+		return helper.Fail(c, fiber.StatusForbidden,
+			"tidak berhak mengakses data user lain")
 	}
 
 	user, err := h.repo.FindByID(ctx, id)
@@ -100,6 +122,20 @@ func (h *UserService) Replace(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	targetID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return helper.Fail(c, fiber.StatusBadRequest, "Invalid ID")
+	}
+
+	if (current.Role == "user" || current.Role == "staff")  && current.UserID != targetID {
+		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	}
+
 	id, valid := helper.ParamID(c)
 	if !valid {
 		return helper.Fail(c, fiber.StatusBadRequest, "ID must be valid!")
@@ -132,6 +168,20 @@ func (h *UserService) Replace(c *fiber.Ctx) error {
 func (h *UserService) Patch(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
+
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	targetID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return helper.Fail(c, fiber.StatusBadRequest, "Invalid ID")
+	}
+
+	if (current.Role == "user" || current.Role == "staff")  && current.UserID != targetID {
+		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
@@ -176,15 +226,53 @@ func (h *UserService) Delete(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
 	id, valid := helper.ParamID(c)
+
 	if !valid {
 		return helper.Fail(c, fiber.StatusBadRequest, "Failed to delete user")
+	}
+
+	if current.UserID == id {
+		return helper.Fail(c, fiber.StatusForbidden,
+			"Can't delete yourself")
 	}
 
 	if err := h.repo.Delete(ctx, id); err != nil {
 		return translateError(c, err, "Failed to delete user")
 	}
 	return helper.NoContent(c)
+}
+
+func (s *UserService) AssignRole(c *fiber.Ctx) error {
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	id, valid := helper.ParamID(c)
+	if !valid {
+		return helper.Fail(c, fiber.StatusBadRequest, "id must be valid")
+	}
+	var req model.AssignRoleRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.Fail(c, fiber.StatusBadRequest, "JSON body must be valid")
+	}
+	if errs := authz.ValidateAssignRole(current, id, req, s.perms); len(errs) > 0 {
+		return helper.FailValidation(c, errs)
+	}
+	result, err := s.repo.UpdateRole(ctx, id, strings.TrimSpace(req.Role))
+	if err != nil {
+		return translateError(c, err, "gagal mengubah role user")
+	}
+	return helper.Success(c, fiber.StatusOK, "role user berhasil diubah", result)
 }
 
 func translateError(c *fiber.Ctx, err error, generalMessage string) error {

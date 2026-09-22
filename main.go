@@ -52,12 +52,7 @@ func main() {
 		time.Duration(config.GetEnvInt("JWT_ACCESS_TTL_MINUTES", 15))*time.Minute,
 	)
 
-	userRepository := repository.NewUserRepository(pool)
-	studentRepository := repository.NewStudentRepository(pool)
-	studentService := student.NewStudentService(studentRepository)
-	tokenRepository := repository.NewTokenRepository(pool)
-	userService := user.NewUserService(userRepository)
-	studentHandler := handler.NewStudentHandler(studentService)
+	
 	roleRepository := repository.NewRoleRepository(pool)
 
 	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
@@ -67,6 +62,13 @@ func main() {
 	}
 	permissions := helper.NewPermissionSet(rawPermissions)
 	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
+
+	userRepository := repository.NewUserRepository(pool)
+	studentRepository := repository.NewStudentRepository(pool)
+	studentService := student.NewStudentService(studentRepository)
+	tokenRepository := repository.NewTokenRepository(pool)
+	userService := user.NewUserService(userRepository, permissions)
+	studentHandler := handler.NewStudentHandler(studentService)
 
 	authService := auth.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
