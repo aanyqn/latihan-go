@@ -171,8 +171,9 @@ func (h *UserService) Patch(c *fiber.Ctx) error {
 		return helper.BadRequest("Body must be in valid JSON format")
 	}
 
-	if req.Username == nil && req.Email == nil && req.IsActive == nil {
-		return helper.BadRequest("No field is changed")
+	empty := IsEmptyPatch(req)
+	if empty == true {
+		return helper.BadRequest("Body shouldn't be empty")
 	}
 
 	if errs := helper.ValidateStruct(req); errs != nil {
@@ -183,18 +184,9 @@ func (h *UserService) Patch(c *fiber.Ctx) error {
 	if err != nil {
 		return translateError(err, "users")
 	}
-	
-	if req.Username != nil {
-		saatIni.Username = strings.TrimSpace(*req.Username)
-	}
-	if req.Email != nil {
-		saatIni.Email = strings.TrimSpace(*req.Email)
-	}
-	if req.IsActive != nil {
-		saatIni.IsActive = *req.IsActive
-	}
 
-	// 6. Simpan perubahan
+	saatIni = ApplyPatch(saatIni, req)
+
 	hasil, err := h.repo.Update(ctx, saatIni)
 	if err != nil {
 		return translateError(err, "user")
