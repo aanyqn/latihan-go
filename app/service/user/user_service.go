@@ -91,17 +91,7 @@ func (h *UserService) Create(c *fiber.Ctx) error {
 	req.Username = strings.TrimSpace(req.Username)
 	req.Email = strings.TrimSpace(req.Email)
 
-	errs := map[string]string{}
-	if req.Username == "" {
-		errs["username"] = "must be filled"
-	}
-	if !strings.Contains(req.Email, "@") {
-		errs["email"] = "format isn't valid"
-	}
-	if len(req.Password) < 8 {
-		errs["password"] = "minimum in 8 characters"
-	}
-	if len(errs) > 0 {
+	if errs := helper.ValidateStruct(req); errs != nil {
 		return helper.Validation(errs)
 	}
 
@@ -144,14 +134,7 @@ func (h *UserService) Replace(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return helper.BadRequest("Body must be valid in JSON format")
 	}
-	errs := map[string]string{}
-	if strings.TrimSpace(req.Username) == "" {
-		errs["username"] = "must be filled"
-	}
-	if !strings.Contains(req.Email, "@") {
-		errs["email"] = "must be filled with email format"
-	}
-	if len(errs) > 0 {
+	if errs := helper.ValidateStruct(req); errs != nil {
 		return helper.Validation(errs)
 	}
 
@@ -174,51 +157,49 @@ func (h *UserService) Patch(c *fiber.Ctx) error {
 		return helper.Unauthorized("Not authenticated")
 	}
 
-	targetID, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return helper.BadRequest("Invalid ID")
-	}
-
-	if (current.Role == "user" || current.Role == "staff") && current.UserID != targetID {
-		return helper.Forbidden("You doesn't have right to do this.")
-	}
-
 	id, valid := helper.ParamID(c)
 	if !valid {
 		return helper.BadRequest("ID must be valid!")
+	}
+
+	if (current.Role == "user" || current.Role == "staff") && current.UserID != id {
+		return helper.Forbidden("You don't have right to do this.")
 	}
 
 	var req model.PatchUserRequest
 	if err := c.BodyParser(&req); err != nil {
 		return helper.BadRequest("Body must be in valid JSON format")
 	}
+
 	if req.Username == nil && req.Email == nil && req.IsActive == nil {
 		return helper.BadRequest("No field is changed")
+	}
+
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
 	}
 
 	saatIni, err := h.repo.FindByID(ctx, id)
 	if err != nil {
 		return translateError(err, "users")
 	}
+	
 	if req.Username != nil {
-		if strings.TrimSpace(*req.Username) == "" {
-			return helper.Validation(map[string]string{"username": "can't be empty"})
-		}
-		saatIni.Username = *req.Username
+		saatIni.Username = strings.TrimSpace(*req.Username)
 	}
 	if req.Email != nil {
-		if !strings.Contains(*req.Email, "@") {
-			return helper.Validation(map[string]string{"email": "invalid email format"})
-		}
-		saatIni.Email = *req.Email
+		saatIni.Email = strings.TrimSpace(*req.Email)
 	}
 	if req.IsActive != nil {
 		saatIni.IsActive = *req.IsActive
 	}
+
+	// 6. Simpan perubahan
 	hasil, err := h.repo.Update(ctx, saatIni)
 	if err != nil {
 		return translateError(err, "user")
 	}
+
 	return helper.Success(c, fiber.StatusOK, "user successfuly patch updated", hasil)
 }
 

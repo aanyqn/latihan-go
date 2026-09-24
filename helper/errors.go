@@ -35,6 +35,7 @@ func (e *AppError) Error() string {
 }
 
 func (e *AppError) Unwrap() error { return e.cause }
+
 func BadRequest(message string) *AppError {
 	return &AppError{Status: fiber.StatusBadRequest, Code: CodeBadRequest, Message: message}
 }
