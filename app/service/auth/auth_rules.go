@@ -58,8 +58,6 @@ func checkPasswordStrength(password string) string {
 	if !hasLetter || !hasDigit {
 		return "harus memuat huruf dan angka"
 	}
-	// Daftar ini sengaja sangat pendek. Sistem sungguhan memakai daftar
-	// berisi jutaan password yang pernah bocor.
 	weak := map[string]bool{
 		"password1": true, "12345678": true, "qwerty123": true,
 		"admin123": true, "password123": true,

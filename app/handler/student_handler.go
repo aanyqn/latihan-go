@@ -3,20 +3,22 @@ package handler
 import (
 	"context"
 	"errors"
-	"strconv"
 	"latihan-fiber/app/model"
+	"latihan-fiber/app/service/authz"
 	"latihan-fiber/app/service/student"
 	"latihan-fiber/helper"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type StudentHandler struct {
 	svc *student.StudentService
+	perms *helper.PermissionSet
 }
 
-func NewStudentHandler(svc *student.StudentService) *StudentHandler {
-	return &StudentHandler{svc: svc}
+func NewStudentHandler(svc *student.StudentService, perms *helper.PermissionSet) *StudentHandler {
+	return &StudentHandler{svc: svc, perms: perms}
 }
 
 func (h *StudentHandler) List(c *fiber.Ctx) error {
@@ -37,6 +39,15 @@ func (h *StudentHandler) Get(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	if current.Role == "user" {
+		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	}
+
 	id, valid := helper.ParamID(c)
 	if !valid {
 		return helper.Fail(c, fiber.StatusBadRequest, "ID must be valid")
@@ -47,6 +58,11 @@ func (h *StudentHandler) Get(c *fiber.Ctx) error {
 		return translateError(c, err, "Fail to get student data")
 	}
 
+	if !authz.CanAccessStudent(current, student.OwnerID, h.perms, "student:read:any") {
+		return helper.Fail(c, fiber.StatusForbidden,
+			"You don't have access")
+	}
+
 	return helper.Success(c, fiber.StatusOK, "Student found!", student)
 }
 
@@ -54,12 +70,17 @@ func (h *StudentHandler) Create(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
 	var req model.CreateStudentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return helper.Fail(c, fiber.StatusBadRequest, "Body must be in valid JSON format!")
 	}
 
-	student, err := h.svc.Create(ctx, req)
+	student, err := h.svc.Create(ctx, req, current.UserID)
 	if err != nil {
 		return translateError(c, err, "Failed to save student data")
 	}
@@ -70,6 +91,15 @@ func (h *StudentHandler) Create(c *fiber.Ctx) error {
 func (h *StudentHandler) Replace(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
+
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	if current.Role == "user" {
+		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
@@ -86,12 +116,26 @@ func (h *StudentHandler) Replace(c *fiber.Ctx) error {
 		return translateError(c, err, "Failed to update student")
 	}
 
+	if !authz.CanAccessStudent(current, student.OwnerID, h.perms, "student:update:any") {
+		return helper.Fail(c, fiber.StatusForbidden,
+			"You don't have access")
+	}
+
 	return helper.Success(c, fiber.StatusOK, "Student data succesfully replaced", student)
 }
 
 func (h *StudentHandler) Patch(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
+
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+	}
+
+	if current.Role == "user" {
+		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
@@ -106,6 +150,11 @@ func (h *StudentHandler) Patch(c *fiber.Ctx) error {
 	student, err := h.svc.Patch(ctx, id, req)
 	if err != nil {
 		return translateError(c, err, "Failed to update student")
+	}
+
+	if !authz.CanAccessStudent(current, student.OwnerID, h.perms, "student:update:any") {
+		return helper.Fail(c, fiber.StatusForbidden,
+			"You don't have access")
 	}
 
 	return helper.Success(c, fiber.StatusOK, "student successfuly patch updated", student)

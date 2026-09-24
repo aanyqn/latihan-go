@@ -57,7 +57,7 @@ func (s *StudentService) Get(ctx context.Context, id int) (model.Student, error)
 	return student, nil
 }
 
-func (s *StudentService) Create(ctx context.Context, req model.CreateStudentRequest) (model.Student, error) {
+func (s *StudentService) Create(ctx context.Context, req model.CreateStudentRequest, owner_id int) (model.Student, error) {
 	req.Username = strings.TrimSpace(req.Username)
 
 	if req.Username == "" || req.NIM == "" {
@@ -68,6 +68,7 @@ func (s *StudentService) Create(ctx context.Context, req model.CreateStudentRequ
 		Username: req.Username,
 		NIM:      req.NIM,
 		IsActive: true,
+		OwnerID: owner_id,
 	})
 
 	if err != nil {

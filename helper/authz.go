@@ -37,7 +37,7 @@ func (p *PermissionSet) Can(role, permission string) bool {
 
 func (p *PermissionSet) PermissionsOf(role string) []string {
 	result := []string{}
-	if p == nil {
+	if p == nil || p.byRole == nil {
 		return result
 	}
 	for permission := range p.byRole[role] {
@@ -45,6 +45,13 @@ func (p *PermissionSet) PermissionsOf(role string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func (p *PermissionSet) KnownPermissions() map[string]map[string]struct{} {
+	if p == nil {
+		return nil
+	}
+	return p.byRole
 }
 
 func (p *PermissionSet) KnownRoles() []string {

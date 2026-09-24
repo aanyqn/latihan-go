@@ -10,6 +10,7 @@ type Student struct {
 	IsActive  bool      `json:"is_active"`
 	NIM       string    `json:"nim"`
 	CreatedAt time.Time `json:"created_at"`
+	OwnerID   int       `json:"owner_id"`
 }
 
 type CreateStudentRequest struct {
@@ -19,10 +20,10 @@ type CreateStudentRequest struct {
 }
 
 type ReplaceStudentRequest struct {
-	Username *string   `json:"username"`
-	NIM      *string   `json:"nim"`
+	Username *string  `json:"username"`
+	NIM      *string  `json:"nim"`
 	Grade    *float64 `json:"grade"`
-	IsActive *bool     `json:"is_active"`
+	IsActive *bool    `json:"is_active"`
 }
 
 type PatchStudentRequest struct {

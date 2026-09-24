@@ -86,3 +86,16 @@ func ParseListQuery(c *fiber.Ctx) ListQuery {
 	}
 	return q
 }
+
+func RequestID(c *fiber.Ctx) string {
+	if id, ok := c.Locals("requestid").(string); ok && id != "" {
+		return id
+	}
+	if id := c.GetRespHeader(fiber.HeaderXRequestID); id != "" {
+		return id
+	}
+	if id := c.Get(fiber.HeaderXRequestID); id != "" {
+		return id
+	}
+	return "unknown"
+}

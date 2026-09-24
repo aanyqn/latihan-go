@@ -30,7 +30,7 @@ func (h *UserService) List(c *fiber.Ctx) error {
 
 	users, total, err := h.repo.FindAll(ctx, q)
 	if err != nil {
-		return helper.Fail(c, fiber.StatusInternalServerError, "Error fetching users")
+		return translateError(err, "users")
 	}
 
 	totalPages := 0
@@ -49,31 +49,31 @@ func (h *UserService) Get(c *fiber.Ctx) error {
 
 	current, ok := helper.CurrentUser(c)
 	if !ok {
-		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+		return helper.Unauthorized("Not authenticated")
 	}
 
 	targetID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "Invalid ID")
+		return helper.BadRequest("Invalid ID")
 	}
 
 	if current.Role == "user" && current.UserID != targetID {
-		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+		return helper.Forbidden("You doesn't have right to do this.")
 	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
-		return helper.Fail(c, fiber.StatusBadRequest, "ID must be valid")
+		return helper.BadRequest("ID must be valid")
 	}
 
 	if !authz.CanAccessUser(current, id, h.perms, "user:read:any") {
-		return helper.Fail(c, fiber.StatusForbidden,
+		return helper.Forbidden(
 			"tidak berhak mengakses data user lain")
 	}
 
 	user, err := h.repo.FindByID(ctx, id)
 	if err != nil {
-		return translateError(c, err, "Fail to get user data")
+		return translateError(err, "user")
 	}
 
 	return helper.Success(c, fiber.StatusOK, "User found!", user)
@@ -85,7 +85,7 @@ func (h *UserService) Create(c *fiber.Ctx) error {
 
 	var req model.CreateUserRequest
 	if err := c.BodyParser(&req); err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "Body must be in valid JSON format!")
+		return helper.BadRequest("Body must be in valid JSON format!")
 	}
 
 	req.Username = strings.TrimSpace(req.Username)
@@ -102,7 +102,7 @@ func (h *UserService) Create(c *fiber.Ctx) error {
 		errs["password"] = "minimum in 8 characters"
 	}
 	if len(errs) > 0 {
-		return helper.FailValidation(c, errs)
+		return helper.Validation(errs)
 	}
 
 	baru, err := h.repo.Create(ctx, model.User{
@@ -112,7 +112,7 @@ func (h *UserService) Create(c *fiber.Ctx) error {
 		IsActive: true,
 	})
 	if err != nil {
-		return translateError(c, err, "Failed to save user data")
+		return translateError(err, "user")
 	}
 	return helper.Created(c, "User succesfully Created", baru,
 		"/api/v1/users/"+strconv.Itoa(baru.ID))
@@ -124,25 +124,25 @@ func (h *UserService) Replace(c *fiber.Ctx) error {
 
 	current, ok := helper.CurrentUser(c)
 	if !ok {
-		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+		return helper.Unauthorized("Not authenticated")
 	}
 
 	targetID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "Invalid ID")
+		return helper.BadRequest("Invalid ID")
 	}
 
-	if (current.Role == "user" || current.Role == "staff")  && current.UserID != targetID {
-		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	if (current.Role == "user" || current.Role == "staff") && current.UserID != targetID {
+		return helper.Forbidden("You doesn't have right to do this.")
 	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
-		return helper.Fail(c, fiber.StatusBadRequest, "ID must be valid!")
+		return helper.BadRequest("ID must be valid!")
 	}
 	var req model.ReplaceUserRequest
 	if err := c.BodyParser(&req); err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "Body must be valid in JSON format")
+		return helper.BadRequest("Body must be valid in JSON format")
 	}
 	errs := map[string]string{}
 	if strings.TrimSpace(req.Username) == "" {
@@ -152,14 +152,14 @@ func (h *UserService) Replace(c *fiber.Ctx) error {
 		errs["email"] = "must be filled with email format"
 	}
 	if len(errs) > 0 {
-		return helper.FailValidation(c, errs)
+		return helper.Validation(errs)
 	}
 
 	hasil, err := h.repo.Update(ctx, model.User{
 		ID: id, Username: req.Username, Email: req.Email, IsActive: req.IsActive,
 	})
 	if err != nil {
-		return translateError(c, err, "Failed to update user")
+		return translateError(err, "users")
 	}
 
 	return helper.Success(c, fiber.StatusOK, "User data succesfully replaced", hasil)
@@ -171,44 +171,44 @@ func (h *UserService) Patch(c *fiber.Ctx) error {
 
 	current, ok := helper.CurrentUser(c)
 	if !ok {
-		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+		return helper.Unauthorized("Not authenticated")
 	}
 
 	targetID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "Invalid ID")
+		return helper.BadRequest("Invalid ID")
 	}
 
-	if (current.Role == "user" || current.Role == "staff")  && current.UserID != targetID {
-		return helper.Fail(c, fiber.StatusForbidden, "You doesn't have right to do this.")
+	if (current.Role == "user" || current.Role == "staff") && current.UserID != targetID {
+		return helper.Forbidden("You doesn't have right to do this.")
 	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
-		return helper.Fail(c, fiber.StatusBadRequest, "ID must be valid!")
+		return helper.BadRequest("ID must be valid!")
 	}
 
 	var req model.PatchUserRequest
 	if err := c.BodyParser(&req); err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "Body must be in valid JSON format")
+		return helper.BadRequest("Body must be in valid JSON format")
 	}
 	if req.Username == nil && req.Email == nil && req.IsActive == nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "No field is changed")
+		return helper.BadRequest("No field is changed")
 	}
 
 	saatIni, err := h.repo.FindByID(ctx, id)
 	if err != nil {
-		return translateError(c, err, "Failed to fetch user")
+		return translateError(err, "users")
 	}
 	if req.Username != nil {
 		if strings.TrimSpace(*req.Username) == "" {
-			return helper.FailValidation(c, map[string]string{"username": "can't be empty"})
+			return helper.Validation(map[string]string{"username": "can't be empty"})
 		}
 		saatIni.Username = *req.Username
 	}
 	if req.Email != nil {
 		if !strings.Contains(*req.Email, "@") {
-			return helper.FailValidation(c, map[string]string{"email": "invalid email format"})
+			return helper.Validation(map[string]string{"email": "invalid email format"})
 		}
 		saatIni.Email = *req.Email
 	}
@@ -217,7 +217,7 @@ func (h *UserService) Patch(c *fiber.Ctx) error {
 	}
 	hasil, err := h.repo.Update(ctx, saatIni)
 	if err != nil {
-		return translateError(c, err, "Failed to update user")
+		return translateError(err, "user")
 	}
 	return helper.Success(c, fiber.StatusOK, "user successfuly patch updated", hasil)
 }
@@ -228,22 +228,22 @@ func (h *UserService) Delete(c *fiber.Ctx) error {
 
 	current, ok := helper.CurrentUser(c)
 	if !ok {
-		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+		return helper.Unauthorized("Not authenticated")
 	}
 
 	id, valid := helper.ParamID(c)
 
 	if !valid {
-		return helper.Fail(c, fiber.StatusBadRequest, "Failed to delete user")
+		return helper.BadRequest("Failed to delete user")
 	}
 
 	if current.UserID == id {
-		return helper.Fail(c, fiber.StatusForbidden,
+		return helper.Forbidden(
 			"Can't delete yourself")
 	}
 
 	if err := h.repo.Delete(ctx, id); err != nil {
-		return translateError(c, err, "Failed to delete user")
+		return translateError(err, "user")
 	}
 	return helper.NoContent(c)
 }
@@ -254,34 +254,34 @@ func (s *UserService) AssignRole(c *fiber.Ctx) error {
 
 	current, ok := helper.CurrentUser(c)
 	if !ok {
-		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
+		return helper.Unauthorized("Not authenticated")
 	}
 
 	id, valid := helper.ParamID(c)
 	if !valid {
-		return helper.Fail(c, fiber.StatusBadRequest, "id must be valid")
+		return helper.BadRequest("id must be valid")
 	}
 	var req model.AssignRoleRequest
 	if err := c.BodyParser(&req); err != nil {
-		return helper.Fail(c, fiber.StatusBadRequest, "JSON body must be valid")
+		return helper.BadRequest("JSON body must be valid")
 	}
 	if errs := authz.ValidateAssignRole(current, id, req, s.perms); len(errs) > 0 {
-		return helper.FailValidation(c, errs)
+		return helper.Validation(errs)
 	}
 	result, err := s.repo.UpdateRole(ctx, id, strings.TrimSpace(req.Role))
 	if err != nil {
-		return translateError(c, err, "gagal mengubah role user")
+		return translateError(err, "user")
 	}
 	return helper.Success(c, fiber.StatusOK, "role user berhasil diubah", result)
 }
 
-func translateError(c *fiber.Ctx, err error, generalMessage string) error {
+func translateError(err error, entity string) error {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
-		return helper.Fail(c, fiber.StatusNotFound, "user tidak ditemukan")
+		return helper.NotFound(entity + " tidak ditemukan")
 	case errors.Is(err, repository.ErrDuplicate):
-		return helper.Fail(c, fiber.StatusConflict, "username sudah dipakai")
+		return helper.Conflict("username sudah dipakai")
 	default:
-		return helper.Fail(c, fiber.StatusInternalServerError, generalMessage)
+		return helper.Internal(err)
 	}
 }

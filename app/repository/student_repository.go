@@ -97,9 +97,9 @@ func (r *studentPostgreRepository) FindByID(
 ) (model.Student, error) {
 	var s model.Student
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, nim, is_active, created_at
+		`SELECT id, username, nim, is_active, created_at, owner_id
 		FROM students WHERE id = $1`, id,
-	).Scan(&s.ID, &s.Username, &s.NIM, &s.IsActive, &s.CreatedAt)
+	).Scan(&s.ID, &s.Username, &s.NIM, &s.IsActive, &s.CreatedAt, &s.OwnerID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
@@ -113,11 +113,11 @@ func (r *studentPostgreRepository) Create(
 	ctx context.Context, s model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO students (username, nim, grade, is_active)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at`,
-		s.Username, s.NIM, s.Grade, s.IsActive,
-	).Scan(&s.ID, &s.CreatedAt)
+		`INSERT INTO students (username, nim, grade, is_active, owner_id)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, owner_id`,
+		s.Username, s.NIM, s.Grade, s.IsActive, s.OwnerID,
+	).Scan(&s.ID, &s.CreatedAt, &s.OwnerID)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return model.Student{}, ErrDuplicate
@@ -133,9 +133,9 @@ func (r *studentPostgreRepository) Update(
 	err := r.pool.QueryRow(ctx,
 		`UPDATE students SET username = $1, nim = $2, is_active = $3, grade=$4
 		WHERE id = $5
-		RETURNING id, username, nim, is_active, created_at`,
+		RETURNING id, username, nim, is_active, created_at, owner_id`,
 		s.Username, s.NIM, s.IsActive, s.Grade, s.ID,
-	).Scan(&s.ID, &s.Username, &s.NIM, &s.IsActive, &s.CreatedAt)
+	).Scan(&s.ID, &s.Username, &s.NIM, &s.IsActive, &s.CreatedAt, &s.OwnerID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound

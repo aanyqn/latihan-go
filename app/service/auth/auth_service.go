@@ -20,7 +20,7 @@ type AuthService struct {
 	tokens     repository.TokenRepository
 	jwt        *helper.JWTManager
 	refreshTTL time.Duration
-	perms *helper.PermissionSet
+	perms      *helper.PermissionSet
 }
 
 func NewAuthService(
@@ -28,9 +28,10 @@ func NewAuthService(
 	tokens repository.TokenRepository,
 	jwtManager *helper.JWTManager,
 	refreshTTL time.Duration,
+	perms *helper.PermissionSet,
 ) *AuthService {
 	return &AuthService{
-		users: users, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL,
+		users: users, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL, perms: perms,
 	}
 }
 
@@ -149,20 +150,21 @@ func (s *AuthService) Logout(c *fiber.Ctx) error {
 	}
 	return helper.Success(c, fiber.StatusOK, "logout berhasil", nil)
 }
+
 func (s *AuthService) Me(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 	authUser, ok := helper.CurrentUser(c)
 	if !ok {
-		return helper.Fail(c, fiber.StatusUnauthorized, "belum terautentikasi")
+		return helper.Fail(c, fiber.StatusUnauthorized, "Not authenticated")
 	}
 	user, err := s.users.FindByID(ctx, authUser.UserID)
 	if err != nil {
 		return helper.Fail(c, fiber.StatusUnauthorized, "user tidak ditemukan")
 	}
 	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", fiber.Map{
-		"user": user,
-		"permissions": s.perms.PermissionsOf(user.Role),
+		"user":        user,
+		"permissions": s.perms.PermissionsOf(strings.ToLower(strings.TrimSpace(user.Role))),
 	})
 }
 

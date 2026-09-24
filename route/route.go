@@ -48,12 +48,12 @@ func Register(app *fiber.App, deps Dependencies) {
 	users.Patch("/:id", deps.UserService.Patch)
 
 	student := api.Group("/students", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
-	student.Get("/", deps.StudentHandler.List)
+	student.Get("/", middleware.RequirePermission(perms, "student:list"), deps.StudentHandler.List)
+	student.Post("/", middleware.RequirePermission(perms, "student:create"), deps.StudentHandler.Create)
+	student.Delete("/:id", middleware.RequirePermission(perms, "student:delete"), deps.StudentHandler.Delete)
 	student.Get("/:id", deps.StudentHandler.Get)
-	student.Post("/", deps.StudentHandler.Create)
 	student.Put("/:id", deps.StudentHandler.Replace)
 	student.Patch("/:id", deps.StudentHandler.Patch)
-	student.Delete("/:id", deps.StudentHandler.Delete)
 
 	// achievement := api.Group("/achievements", middleware.RequireJSON)
 	// achievement.Get("/:id", achievementService.Get)
