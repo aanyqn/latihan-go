@@ -119,10 +119,10 @@ func (r *userPostgresRepository) Create(
 	ctx context.Context, u model.User,
 ) (model.User, error) {
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO users (email, password)
-		VALUES ($1, $2)
+		`INSERT INTO users (email, password, role)
+		VALUES ($1, $2, $3)
 		RETURNING id`,
-		u.Email, u.Password,
+		u.Email, u.Password, u.Role,
 	).Scan(&u.ID)
 	if err != nil {
 		if isUniqueViolation(err) {

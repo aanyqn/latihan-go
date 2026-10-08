@@ -6,7 +6,7 @@ import (
 	"siakad/app/repository"
 	"siakad/app/service/auth"
 	"siakad/app/service/student"
-	"siakad/app/service/user"
+	// "siakad/app/service/user"
 	"siakad/config"
 	"siakad/database"
 	"siakad/helper"
@@ -62,9 +62,9 @@ func main() {
 
 	userRepository := repository.NewUserRepository(pool)
 	studentRepository := repository.NewStudentRepository(pool)
-	studentService := student.NewStudentService(studentRepository)
+	studentService := student.NewStudentService(studentRepository, userRepository)
 	tokenRepository := repository.NewTokenRepository(pool)
-	userService := user.NewUserService(userRepository, permissions)
+	// userService := user.NewUserService(userRepository, permissions)
 	studentHandler := handler.NewStudentHandler(studentService, permissions)
 
 	authService := auth.NewAuthService(
@@ -75,7 +75,7 @@ func main() {
 		Pool:           pool,
 		Permissions:    permissions,
 		JWT:            jwtManager,
-		UserService:    userService,
+		// UserService:    userService,
 		AuthService:    authService,
 		StudentHandler: studentHandler,
 	})

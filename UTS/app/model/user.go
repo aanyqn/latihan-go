@@ -21,12 +21,10 @@ type CreateUserRequest struct {
 }
 type ReplaceUserRequest struct {
 	Email    string `json:"email" validate:"required,email,max=120"`
-	IsActive bool   `json:"is_active"`
 }
 
 type PatchUserRequest struct {
 	Email    *string `json:"email,omitempty" validate:"omitnil,email,max=120"`
-	IsActive *bool   `json:"is_active,omitempty"`
 }
 
 type AssignRoleRequest struct {

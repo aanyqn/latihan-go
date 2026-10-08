@@ -50,6 +50,17 @@ ADD CONSTRAINT enrollments_fkey_courses FOREIGN KEY(course_id) REFERENCES course
 
 CREATE UNIQUE INDEX IF NOT EXISTS enrollments_students_courses_year ON enrollments (student_id, course_id, tahun_akademik);
 
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+ id BIGSERIAL PRIMARY KEY,
+ user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ token_hash TEXT NOT NULL UNIQUE,
+ expires_at TIMESTAMPTZ NOT NULL,
+ revoked_at TIMESTAMPTZ,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS refresh_tokens_user_id_idx
+ ON refresh_tokens (user_id)
+
 CREATE TABLE IF NOT EXISTS permissions (
 	name VARCHAR(50) PRIMARY KEY,
 	description VARCHAR(150) NOT NULL
