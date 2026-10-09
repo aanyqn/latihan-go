@@ -1,7 +1,10 @@
 package helper
 
 import (
+	"context"
+	"errors"
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -23,8 +26,16 @@ type AppError struct {
 	Status  int
 	Code    string
 	Message string
-	Fields  map[string]string
+	Errors  map[string]string
 	cause   error
+}
+
+type ErrorResponse struct {
+	Success   bool              `json:"success"`
+	Code      string            `json:"code"`
+	Message   string            `json:"message"`
+	Errors    map[string]string `json:"errors,omitempty"`
+	RequestID string            `json:"request_id,omitempty"`
 }
 
 func (e *AppError) Error() string {
@@ -51,10 +62,13 @@ func NotFound(message string) *AppError {
 func Conflict(message string) *AppError {
 	return &AppError{Status: fiber.StatusConflict, Code: CodeConflict, Message: message}
 }
+func UnprocessableEntity(message string) *AppError {
+	return &AppError{Status: fiber.StatusUnprocessableEntity, Code: "UNPROCESSABLE_ENTITY", Message: message}
+}
 func Validation(fields map[string]string) *AppError {
 	return &AppError{
-		Status: fiber.StatusBadRequest, Code: CodeValidation,
-		Message: "failed validation", Fields: fields,
+		Status: fiber.StatusUnprocessableEntity, Code: CodeValidation,
+		Message: "failed validation", Errors: fields,
 	}
 }
 func UnsupportedMedia(message string) *AppError {
@@ -71,9 +85,39 @@ func NotAcceptable(message string) *AppError {
 		Status: fiber.StatusNotAcceptable, Code: CodeNotAcceptable, Message: message,
 	}
 }
-func Internal(cause error) *AppError {
+func Internal(cause error, message string) *AppError {
 	return &AppError{
 		Status: fiber.StatusInternalServerError, Code: CodeInternal,
-		Message: "there is an error on server", cause: cause,
+		Message: message, cause: cause,
+	}
+}
+
+var (
+	ErrNotFound       = errors.New("Not found")
+	ErrDuplicate      = errors.New("Already used")
+	ErrInvalidInput   = errors.New("Input isn't valid")
+	ErrNoFieldsChange = errors.New("No changes input")
+	ErrQuotaFull      = errors.New("Kuota penuh")
+)
+
+func TranslateError(c *fiber.Ctx, err error, generalMessage string) error {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr
+	}
+
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return NotFound(err.Error())
+	case errors.Is(err, ErrDuplicate):
+		return Conflict(err.Error())
+	case errors.Is(err, ErrInvalidInput), errors.Is(err, ErrNoFieldsChange):
+		return BadRequest(err.Error())
+	case errors.Is(err, ErrQuotaFull):
+		return UnprocessableEntity(err.Error())
+	case errors.Is(err, context.DeadlineExceeded):
+		return Fail(c, fiber.StatusGatewayTimeout, "Request timeout")
+	default:
+		return Internal(err, generalMessage)
 	}
 }

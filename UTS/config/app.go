@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"siakad/app/model"
 	"siakad/helper"
 	"siakad/middleware"
 	"siakad/route"
@@ -50,7 +49,7 @@ func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 					Message: fiberErr.Message,
 				}
 			} else {
-				appErr = helper.Internal(err)
+				appErr = helper.Internal(err, "Error starting app")
 			}
 		}
 		if appErr.Status >= fiber.StatusInternalServerError {
@@ -75,11 +74,11 @@ func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 				slog.Int("status", appErr.Status),
 			)
 		}
-		return c.Status(appErr.Status).JSON(model.ErrorResponse{
+		return c.Status(appErr.Status).JSON(helper.ErrorResponse{
 			Success:   false,
 			Code:      appErr.Code,
 			Message:   appErr.Message,
-			Fields:    appErr.Fields,
+			Errors:    appErr.Errors,
 			RequestID: requestID,
 		})
 	}

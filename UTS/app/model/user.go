@@ -7,14 +7,6 @@ type User struct {
 	Password  string    `json:"-"`
 }
 
-type ErrorResponse struct {
-	Success   bool              `json:"success"`
-	Code      string            `json:"code"`
-	Message   string            `json:"message"`
-	Fields    map[string]string `json:"fields,omitempty"`
-	RequestID string            `json:"request_id,omitempty"`
-}
-
 type CreateUserRequest struct {
 	Email    string `json:"email" validate:"required,email,max=120"`
 	Password string `json:"password" validate:"required,min=8,max=72,nospace"`

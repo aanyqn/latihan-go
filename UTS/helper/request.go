@@ -16,9 +16,9 @@ type ListQuery struct {
 	Sort     string
 	Order    string
 	IsActive *bool
-	GradeMin *float64
-	GradeMax *float64
 	Filter   *int64
+	Prodi string
+	Angkatan string
 }
 
 func (q ListQuery) Offset() int {
@@ -48,6 +48,8 @@ func ParseListQuery(c *fiber.Ctx) ListQuery {
 		Search: strings.TrimSpace(c.Query("search")),
 		Sort:   c.Query("sort", "id"),
 		Order:  strings.ToLower(c.Query("order", "asc")),
+		Prodi: strings.TrimSpace(c.Query("prodi")),
+		Angkatan: strings.TrimSpace(c.Query("angkatan")),
 	}
 	if q.Page < 1 {
 		q.Page = 1
@@ -67,16 +69,6 @@ func ParseListQuery(c *fiber.Ctx) ListQuery {
 	if raw := c.Query("is_active"); raw != "" {
 		if v, err := strconv.ParseBool(raw); err == nil {
 			q.IsActive = &v
-		}
-	}
-	if raw := c.Query("grade_min"); raw != "" {
-		if v, err := strconv.ParseFloat(raw, 64); err == nil {
-			q.GradeMin = &v
-		}
-	}
-	if raw := c.Query("grade_max"); raw != "" {
-		if v, err := strconv.ParseFloat(raw, 64); err == nil {
-			q.GradeMax = &v
 		}
 	}
 	if raw := c.Query("filter"); raw != "" {

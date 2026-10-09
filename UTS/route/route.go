@@ -13,11 +13,13 @@ import (
 )
 
 type Dependencies struct {
-	Pool           *pgxpool.Pool
-	Permissions    *helper.PermissionSet
-	JWT            *helper.JWTManager
-	AuthService    *auth.AuthService
-	StudentHandler *handler.StudentHandler
+	Pool              *pgxpool.Pool
+	Permissions       *helper.PermissionSet
+	JWT               *helper.JWTManager
+	AuthService       *auth.AuthService
+	StudentHandler    *handler.StudentHandler
+	CourseHandler     *handler.CourseHandler
+	EnrollmentHandler *handler.EnrollmentHandler
 }
 
 func Register(app *fiber.App, deps Dependencies) {
@@ -39,6 +41,13 @@ func Register(app *fiber.App, deps Dependencies) {
 	student.Delete("/:id", middleware.RequirePermission(perms, "student:delete:any"), deps.StudentHandler.Delete)
 	student.Get("/:id", deps.StudentHandler.Get)
 	student.Put("/:id", deps.StudentHandler.Replace)
+
+	course := api.Group("/courses", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+	course.Get("/", middleware.RequirePermission(perms, "course:list"), deps.CourseHandler.List)
+
+	enrollment := api.Group("/enrollments", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+	enrollment.Post("/", middleware.RequirePermission(perms, "enrollment:create"), deps.EnrollmentHandler.Create)
+	enrollment.Delete("/:id", middleware.RequirePermission(perms, "enrollment:delete:own"), deps.EnrollmentHandler.Delete)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {
@@ -47,8 +56,8 @@ func healthCheck(pool *pgxpool.Pool) fiber.Handler {
 		defer cancel()
 		if err := pool.Ping(ctx); err != nil {
 			return helper.Fail(c, fiber.StatusServiceUnavailable,
-				"database tidak dapat dihubungi")
+				"Can't connext database")
 		}
-		return helper.Success(c, fiber.StatusOK, "server dan database berjalan", nil)
+		return helper.Success(c, fiber.StatusOK, "server and database is running", nil)
 	}
 }

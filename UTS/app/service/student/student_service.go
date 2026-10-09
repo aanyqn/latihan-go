@@ -10,13 +10,6 @@ import (
 	"siakad/helper"
 )
 
-var (
-	ErrNotFound       = errors.New("student not found")
-	ErrDuplicate      = errors.New("username already used")
-	ErrInvalidInput   = errors.New("input isn't valid")
-	ErrNoFieldsChange = errors.New("no changes input")
-)
-
 type StudentService struct {
 	studentRepo repository.StudentRepository
 	userRepo    repository.UserRepository
@@ -50,8 +43,8 @@ func (s *StudentService) List(ctx context.Context, q helper.ListQuery) ([]model.
 func (s *StudentService) Get(ctx context.Context, id int) (model.Student, error) {
 	student, err := s.studentRepo.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return model.Student{}, ErrNotFound
+		if errors.Is(err, helper.ErrNotFound) {
+			return model.Student{}, helper.ErrNotFound
 		}
 		return model.Student{}, err
 	}
@@ -69,8 +62,15 @@ func (s *StudentService) Create(ctx context.Context, req model.CreateStudentRequ
 		Role:     "mahasiswa",
 	})
 
+	if err != nil {
+		if errors.Is(err, helper.ErrDuplicate) {
+			return model.Student{}, helper.ErrDuplicate
+		}
+		return model.Student{}, err
+	}
+
 	if req.Nama == "" || req.NIM == "" {
-		return model.Student{}, ErrInvalidInput
+		return model.Student{}, helper.ErrInvalidInput
 	}
 
 	newStudent, err := s.studentRepo.Create(ctx, model.Student{
@@ -78,11 +78,12 @@ func (s *StudentService) Create(ctx context.Context, req model.CreateStudentRequ
 		NIM:      req.NIM,
 		Prodi:    req.Prodi,
 		Angkatan: req.Angkatan,
-	}, user)
+		User:     user,
+	})
 
 	if err != nil {
-		if errors.Is(err, repository.ErrDuplicate) {
-			return model.Student{}, ErrDuplicate
+		if errors.Is(err, helper.ErrDuplicate) {
+			return model.Student{}, helper.ErrDuplicate
 		}
 		return model.Student{}, err
 	}
@@ -92,7 +93,7 @@ func (s *StudentService) Create(ctx context.Context, req model.CreateStudentRequ
 
 func (s *StudentService) Replace(ctx context.Context, id int, req model.ReplaceStudentRequest) (model.Student, error) {
 	if req.Nama == nil || req.NIM == nil || req.Prodi == nil || req.Angkatan == nil || req.IPKTerakhir == nil {
-		return model.Student{}, ErrInvalidInput
+		return model.Student{}, helper.ErrInvalidInput
 	}
 
 	nama := strings.TrimSpace(*req.Nama)
@@ -107,11 +108,11 @@ func (s *StudentService) Replace(ctx context.Context, id int, req model.ReplaceS
 		IPKTerakhir: req.IPKTerakhir,
 	})
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return model.Student{}, ErrNotFound
+		if errors.Is(err, helper.ErrNotFound) {
+			return model.Student{}, helper.ErrNotFound
 		}
-		if errors.Is(err, repository.ErrDuplicate) {
-			return model.Student{}, ErrDuplicate
+		if errors.Is(err, helper.ErrDuplicate) {
+			return model.Student{}, helper.ErrDuplicate
 		}
 		return model.Student{}, err
 	}
@@ -122,8 +123,8 @@ func (s *StudentService) Replace(ctx context.Context, id int, req model.ReplaceS
 func (s *StudentService) Delete(ctx context.Context, id int) error {
 	err := s.studentRepo.Delete(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return ErrNotFound
+		if errors.Is(err, helper.ErrNotFound) {
+			return helper.ErrNotFound
 		}
 		return err
 	}

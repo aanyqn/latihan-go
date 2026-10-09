@@ -5,15 +5,18 @@ import (
 	"siakad/app/handler"
 	"siakad/app/repository"
 	"siakad/app/service/auth"
+	"siakad/app/service/course"
+	"siakad/app/service/enrollment"
 	"siakad/app/service/student"
+
 	// "siakad/app/service/user"
+	"log/slog"
+	"os"
+	"os/signal"
 	"siakad/config"
 	"siakad/database"
 	"siakad/helper"
 	"siakad/route"
-	"log/slog"
-	"os"
-	"os/signal"
 	"syscall"
 	"time"
 
@@ -64,20 +67,26 @@ func main() {
 	studentRepository := repository.NewStudentRepository(pool)
 	studentService := student.NewStudentService(studentRepository, userRepository)
 	tokenRepository := repository.NewTokenRepository(pool)
-	// userService := user.NewUserService(userRepository, permissions)
 	studentHandler := handler.NewStudentHandler(studentService, permissions)
+	courseRepository := repository.NewCourseRepository(pool)
+	courseService := course.NewCourseService(courseRepository)
+	courseHandler := handler.NewCourseHandler(courseService, permissions)
+	enrollmentRepository := repository.NewEnrollmentRepository(pool)
+	enrollmentService := enrollment.NewEnrollmentService(enrollmentRepository, studentRepository)
+	enrollmnetHandler := handler.NewEnrollmentHandler(enrollmentService, permissions)
 
 	authService := auth.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
-		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour, permissions,
+		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour, permissions, studentRepository,
 	)
 	app := config.NewApp(logger, route.Dependencies{
 		Pool:           pool,
 		Permissions:    permissions,
 		JWT:            jwtManager,
-		// UserService:    userService,
 		AuthService:    authService,
 		StudentHandler: studentHandler,
+		CourseHandler: courseHandler,
+		EnrollmentHandler: enrollmnetHandler,
 	})
 
 	port := config.GetEnv("APP_PORT", "3000")

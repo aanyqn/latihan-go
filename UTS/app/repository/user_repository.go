@@ -12,11 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var (
-	ErrNotFound  = errors.New("Data not found")
-	ErrDuplicate = errors.New("Data already exist")
-)
-
 type UserRepository interface {
 	FindAll(ctx context.Context, q helper.ListQuery) ([]model.User, int, error)
 	FindByID(ctx context.Context, id int) (model.User, error)
@@ -27,7 +22,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, username string) (model.User, error)
 }
 
-var kolomUrut = map[string]string{
+var sortColumnUser = map[string]string{
 	"id":         "id",
 	"username":   "username",
 	"email":      "email",
@@ -42,7 +37,7 @@ func NewUserRepository(pool *pgxpool.Pool) UserRepository {
 	return &userPostgresRepository{pool: pool}
 }
 
-func buildFilter(q helper.ListQuery) (string, []any) {
+func userFilters(q helper.ListQuery) (string, []any) {
 	where := " WHERE 1 = 1"
 	args := []any{}
 	if q.Search != "" {
@@ -60,7 +55,7 @@ func buildFilter(q helper.ListQuery) (string, []any) {
 func (r *userPostgresRepository) FindAll(
 	ctx context.Context, q helper.ListQuery,
 ) ([]model.User, int, error) {
-	where, args := buildFilter(q)
+	where, args := userFilters(q)
 
 	var total int
 	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM users"+where, args...).Scan(&total)
@@ -76,7 +71,7 @@ func (r *userPostgresRepository) FindAll(
 		FROM users %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d`,
-		where, kolomUrut[q.Sort], arah, len(args)+1, len(args)+2,
+		where, sortColumnUser[q.Sort], arah, len(args)+1, len(args)+2,
 	)
 	args = append(args, q.Limit, q.Offset())
 	rows, err := r.pool.Query(ctx, sqlText, args...)
@@ -108,7 +103,7 @@ func (r *userPostgresRepository) FindByID(
 	).Scan(&u.ID, &u.Email, &u.Password, &u.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.User{}, ErrNotFound
+			return model.User{}, helper.ErrNotFound
 		}
 		return model.User{}, fmt.Errorf("Get User: %w", err)
 	}
@@ -126,7 +121,7 @@ func (r *userPostgresRepository) Create(
 	).Scan(&u.ID)
 	if err != nil {
 		if isUniqueViolation(err) {
-			return model.User{}, ErrDuplicate
+			return model.User{}, helper.ErrDuplicate
 		}
 		return model.User{}, fmt.Errorf("Saving User: %w", err)
 	}
@@ -144,10 +139,10 @@ func (r *userPostgresRepository) Update(
 	).Scan(&u.ID, &u.Email, &u.Password, &u.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.User{}, ErrNotFound
+			return model.User{}, helper.ErrNotFound
 		}
 		if isUniqueViolation(err) {
-			return model.User{}, ErrDuplicate
+			return model.User{}, helper.ErrDuplicate
 		}
 		return model.User{}, fmt.Errorf("Update user: %w", err)
 	}
@@ -160,7 +155,7 @@ func (r *userPostgresRepository) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("Delete user: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+		return helper.ErrNotFound
 	}
 	return nil
 }
@@ -174,7 +169,7 @@ func (r *userPostgresRepository) UpdateRole(
 		role, id).Scan(&u.ID, &u.Email, &u.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return u, ErrNotFound
+			return u, helper.ErrNotFound
 		}
 		return u, fmt.Errorf("Change role user: %w", err)
 	}
@@ -199,7 +194,7 @@ func (r *userPostgresRepository) FindByEmail(
 	).Scan(&u.ID, &u.Email, &u.Password, &u.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.User{}, ErrNotFound
+			return model.User{}, helper.ErrNotFound
 		}
 		return model.User{}, fmt.Errorf("Get user: %w", err)
 	}

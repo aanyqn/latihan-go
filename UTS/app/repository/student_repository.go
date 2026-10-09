@@ -14,15 +14,16 @@ import (
 type StudentRepository interface {
 	FindAll(ctx context.Context, q helper.ListQuery) ([]model.Student, int, error)
 	FindByID(ctx context.Context, id int) (model.Student, error)
-	Create(ctx context.Context, s model.Student, user_id model.User) (model.Student, error)
+	FindByUserID(ctx context.Context, id int) (model.Student, error)
+	Create(ctx context.Context, s model.Student) (model.Student, error)
 	Update(ctx context.Context, s model.Student) (model.Student, error)
 	Delete(ctx context.Context, id int) error
 }
 
-var sortColumn = map[string]string{
-	"id":   "id",
+var sortColumnStudent = map[string]string{
+	"id": "id",
 	"nama": "nama",
-	"nim":  "nim",
+	"ipk_terakhir": "ipk_terakhir",
 }
 
 type studentPostgreRepository struct {
@@ -33,13 +34,23 @@ func NewStudentRepository(pool *pgxpool.Pool) StudentRepository {
 	return &studentPostgreRepository{pool: pool}
 }
 
-func buildFilters(q helper.ListQuery) (string, []any) {
+func studentFilters(q helper.ListQuery) (string, []any) {
 	where := " WHERE 1 = 1 AND s.deleted_at IS NULL"
 	args := []any{}
 	if q.Search != "" {
-		where += fmt.Sprintf(" AND (s.nama ILIKE $%d OR s.nim ILIKE $%d OR u.email ILIKE $%d)",
-			len(args)+1, len(args)+1, len(args)+1)
+		where += fmt.Sprintf(" AND (s.nama ILIKE $%d OR s.nim ILIKE $%d)",
+			len(args)+1, len(args)+1)
 		args = append(args, "%"+q.Search+"%")
+	}
+	if q.Prodi != "" {
+		where += fmt.Sprintf(" AND (s.prodi ILIKE $%d)",
+			len(args)+1)
+		args = append(args, "%"+q.Prodi+"%")
+	}
+	if q.Angkatan != "" {
+		where += fmt.Sprintf(" AND (s.angkatan ILIKE $%d)",
+			len(args)+1)
+		args = append(args, "%"+q.Angkatan+"%")
 	}
 	return where, args
 }
@@ -47,7 +58,7 @@ func buildFilters(q helper.ListQuery) (string, []any) {
 func (r *studentPostgreRepository) FindAll(
 	ctx context.Context, q helper.ListQuery,
 ) ([]model.Student, int, error) {
-	where, args := buildFilters(q)
+	where, args := studentFilters(q)
 
 	var total int
 	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM students s LEFT JOIN users u ON u.id = s.user_id "+where, args...).Scan(&total)
@@ -65,7 +76,7 @@ func (r *studentPostgreRepository) FindAll(
 		ON s.user_id = u.id %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d`,
-		where, sortColumn[q.Sort], arah, len(args)+1, len(args)+2,
+		where, sortColumnStudent[q.Sort], arah, len(args)+1, len(args)+2,
 	)
 	args = append(args, q.Limit, q.Offset())
 	rows, err := r.pool.Query(ctx, sqlText, args...)
@@ -100,7 +111,26 @@ func (r *studentPostgreRepository) FindByID(
 	).Scan(&s.ID, &s.Nama, &s.NIM, &s.Prodi, &s.Angkatan, &s.IPKTerakhir, &s.UserID, &s.User.Email, &s.User.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.Student{}, ErrNotFound
+			return model.Student{}, helper.ErrNotFound
+		}
+		return model.Student{}, fmt.Errorf("Get Student: %w", err)
+	}
+	return s, nil
+}
+
+func (r *studentPostgreRepository) FindByUserID(
+	ctx context.Context, id int,
+) (model.Student, error) {
+	var s model.Student
+	err := r.pool.QueryRow(ctx,
+		`SELECT s.id, s.nama, s.nim, s.prodi, s.angkatan, s.ipk_terakhir, s.user_id, u.id, u.email, u.role
+		FROM students s
+		LEFT JOIN users u
+		ON s.user_id = u.id WHERE s.user_id = $1 AND s.deleted_at IS NULL`, id,
+	).Scan(&s.ID, &s.Nama, &s.NIM, &s.Prodi, &s.Angkatan, &s.IPKTerakhir, &s.UserID, &s.User.ID, &s.User.Email, &s.User.Role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Student{}, helper.ErrNotFound
 		}
 		return model.Student{}, fmt.Errorf("Get Student: %w", err)
 	}
@@ -108,21 +138,20 @@ func (r *studentPostgreRepository) FindByID(
 }
 
 func (r *studentPostgreRepository) Create(
-	ctx context.Context, s model.Student, u model.User,
+	ctx context.Context, s model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
 		`INSERT INTO students (nama, nim, prodi, angkatan, user_id)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, nama, user_id`,
-		s.Nama, s.NIM, s.Prodi, s.Angkatan, u.ID,
+		s.Nama, s.NIM, s.Prodi, s.Angkatan, s.User.ID,
 	).Scan(&s.ID, &s.Nama, &s.UserID)
 	if err != nil {
 		if isUniqueViolation(err) {
-			return model.Student{}, ErrDuplicate
+			return model.Student{}, helper.ErrDuplicate
 		}
 		return model.Student{}, fmt.Errorf("Creating Student: %w", err)
 	}
-	s.User = u
 	return s, nil
 }
 
@@ -137,10 +166,10 @@ func (r *studentPostgreRepository) Update(
 	).Scan(&s.ID, &s.Nama, &s.NIM, &s.Prodi, &s.Angkatan, &s.IPKTerakhir, &s.UserID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.Student{}, ErrNotFound
+			return model.Student{}, helper.ErrNotFound
 		}
 		if isUniqueViolation(err) {
-			return model.Student{}, ErrDuplicate
+			return model.Student{}, helper.ErrDuplicate
 		}
 		return model.Student{}, fmt.Errorf("Update student: %w", err)
 	}
@@ -153,7 +182,7 @@ func (r *studentPostgreRepository) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("Delete student: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+		return helper.ErrNotFound
 	}
 	return nil
 }

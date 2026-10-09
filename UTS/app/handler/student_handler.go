@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"context"
-	"errors"
 	"siakad/app/model"
 	"siakad/app/service/authz"
 	"siakad/app/service/student"
@@ -29,7 +27,7 @@ func (h *StudentHandler) List(c *fiber.Ctx) error {
 
 	students, meta, err := h.svc.List(ctx, q)
 	if err != nil {
-		return translateError(c, err, "Error fetching students")
+		return helper.TranslateError(c, err, "Error fetching students")
 	}
 
 	return helper.SuccessList(c, "Successful fetching Students data", students, meta)
@@ -51,7 +49,7 @@ func (h *StudentHandler) Get(c *fiber.Ctx) error {
 
 	student, err := h.svc.Get(ctx, id)
 	if err != nil {
-		return translateError(c, err, "Fail to get student data")
+		return helper.TranslateError(c, err, "Fail to get student data")
 	}
 
 	if !authz.CanAccessStudent(current, student.UserID, h.perms, "student:read:any") {
@@ -82,14 +80,14 @@ func (h *StudentHandler) Create(c *fiber.Ctx) error {
 
 	hashed, err := helper.HashPassword(req.Password)
 	if err != nil {
-		return helper.Internal(err)
+		return helper.Internal(err, "Error hashing")
 	}
 
 	req.Password = hashed
 
 	student, err := h.svc.Create(ctx, req)
 	if err != nil {
-		return translateError(c, err, "Failed to save student data")
+		return helper.TranslateError(c, err, "Failed to save student data")
 	}
 
 	return helper.Created(c, "Student succesfully Created", student, "/api/v1/students/"+strconv.Itoa(student.ID))
@@ -120,7 +118,7 @@ func (h *StudentHandler) Replace(c *fiber.Ctx) error {
 
 	student, err := h.svc.Replace(ctx, id, req)
 	if err != nil {
-		return translateError(c, err, "Failed to update student")
+		return helper.TranslateError(c, err, "Failed to update student")
 	}
 
 	if !authz.CanAccessStudent(current, student.UserID, h.perms, "student:update:any") {
@@ -140,23 +138,8 @@ func (h *StudentHandler) Delete(c *fiber.Ctx) error {
 	}
 
 	if err := h.svc.Delete(ctx, id); err != nil {
-		return translateError(c, err, "Failed to delete student")
+		return helper.TranslateError(c, err, "Failed to delete student")
 	}
 
 	return helper.NoContent(c)
-}
-
-func translateError(c *fiber.Ctx, err error, generalMessage string) error {
-	switch {
-	case errors.Is(err, student.ErrNotFound):
-		return helper.Fail(c, fiber.StatusNotFound, err.Error())
-	case errors.Is(err, student.ErrDuplicate):
-		return helper.Fail(c, fiber.StatusConflict, err.Error())
-	case errors.Is(err, student.ErrInvalidInput), errors.Is(err, student.ErrNoFieldsChange):
-		return helper.Fail(c, fiber.StatusBadRequest, err.Error())
-	case errors.Is(err, context.DeadlineExceeded):
-		return helper.Fail(c, fiber.StatusGatewayTimeout, "Request timeout")
-	default:
-		return helper.Fail(c, fiber.StatusInternalServerError, generalMessage)
-	}
 }

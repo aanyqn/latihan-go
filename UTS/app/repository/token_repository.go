@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"siakad/app/model"
+	"siakad/helper"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -49,7 +50,7 @@ func (r *tokenPostgresRepository) FindActive(
 	).Scan(&t.ID, &t.UserID, &t.TokenHash, &t.ExpiresAt, &t.RevokedAt, &t.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return model.RefreshToken{}, ErrNotFound
+			return model.RefreshToken{}, helper.ErrNotFound
 		}
 		return model.RefreshToken{}, fmt.Errorf("Get refresh token: %w", err)
 	}

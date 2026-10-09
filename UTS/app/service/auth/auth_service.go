@@ -2,11 +2,10 @@ package auth
 
 import (
 	"context"
-	// "errors"
 	"siakad/app/model"
 	"siakad/app/repository"
 	"siakad/helper"
-	// "strconv"
+
 	"strings"
 	"time"
 
@@ -21,6 +20,7 @@ type AuthService struct {
 	jwt        *helper.JWTManager
 	refreshTTL time.Duration
 	perms      *helper.PermissionSet
+	students   repository.StudentRepository
 }
 
 func NewAuthService(
@@ -29,9 +29,10 @@ func NewAuthService(
 	jwtManager *helper.JWTManager,
 	refreshTTL time.Duration,
 	perms *helper.PermissionSet,
+	students repository.StudentRepository,
 ) *AuthService {
 	return &AuthService{
-		users: users, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL, perms: perms,
+		users: users, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL, perms: perms, students: students,
 	}
 }
 
@@ -55,7 +56,7 @@ func (s *AuthService) Login(c *fiber.Ctx) error {
 	}
 	pair, err := s.issueTokenPair(ctx, user)
 	if err != nil {
-		return helper.Internal(err)
+		return helper.Internal(err, "Token pair failed")
 	}
 	return helper.Success(c, fiber.StatusOK, "login success", pair)
 }
@@ -79,13 +80,13 @@ func (s *AuthService) Refresh(c *fiber.Ctx) error {
 	if err != nil {
 		return helper.Unauthorized("Can't access account")
 	}
-	
+
 	if err := s.tokens.Revoke(ctx, hash); err != nil {
-		return helper.Internal(err)
+		return helper.Internal(err, "Revoking error")
 	}
 	pair, err := s.issueTokenPair(ctx, user)
 	if err != nil {
-		return helper.Internal(err)
+		return helper.Internal(err, "Token pair failed")
 	}
 	return helper.Success(c, fiber.StatusOK, "token successfully updated", pair)
 }
@@ -112,7 +113,18 @@ func (s *AuthService) Me(c *fiber.Ctx) error {
 	}
 	user, err := s.users.FindByID(ctx, authUser.UserID)
 	if err != nil {
-		return helper.Unauthorized("user not found")
+		return helper.NotFound("user not found")
+	}
+	if user.Role == "mahasiswa" {
+		student, err := s.students.FindByUserID(ctx, authUser.UserID)
+		if err != nil {
+			return helper.NotFound("student not found")
+		}
+		return helper.Success(c, fiber.StatusOK, "successfully got profile information", fiber.Map{
+			"user":        user,
+			"student":     student,
+			"permissions": s.perms.PermissionsOf(strings.ToLower(strings.TrimSpace(user.Role))),
+		})
 	}
 	return helper.Success(c, fiber.StatusOK, "successfully got profile information", fiber.Map{
 		"user":        user,
@@ -131,7 +143,7 @@ func (s *AuthService) issueTokenPair(
 	if err != nil {
 		return model.TokenPair{}, err
 	}
-	
+
 	err = s.tokens.Save(ctx, model.RefreshToken{
 		UserID:    user.ID,
 		TokenHash: helper.SHA256Hex(refreshToken),
@@ -141,7 +153,7 @@ func (s *AuthService) issueTokenPair(
 	if err != nil {
 		return model.TokenPair{}, err
 	}
-	
+
 	return model.TokenPair{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
