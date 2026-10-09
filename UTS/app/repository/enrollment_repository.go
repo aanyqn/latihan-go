@@ -2,14 +2,17 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"siakad/app/model"
 	"siakad/helper"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type EnrollmentRepository interface {
+	FindByID(ctx context.Context, id int) (model.Enrollment, error)
 	Create(ctx context.Context, e model.Enrollment, ipk float64) (model.Enrollment, error)
 	Delete(ctx context.Context, id int) error
 }
@@ -89,6 +92,23 @@ func (r *enrollmentPostgreRepository) Create(
 		return model.Enrollment{}, fmt.Errorf("commit transaction: %w", err)
 	}
 
+	return e, nil
+}
+
+func (r *enrollmentPostgreRepository) FindByID(
+	ctx context.Context, id int,
+) (model.Enrollment, error) {
+	var e model.Enrollment
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, student_id, course_id, tahun_akademik, created_at
+		FROM enrollments WHERE id = $1`, id,
+	).Scan(&e.ID, &e.StudentID, &e.CourseID, &e.TahunAkademik, &e.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Enrollment{}, helper.ErrNotFound
+		}
+		return model.Enrollment{}, fmt.Errorf("Get enrollment: %w", err)
+	}
 	return e, nil
 }
 

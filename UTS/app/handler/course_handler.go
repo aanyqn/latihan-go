@@ -29,3 +29,4 @@ func (h *CourseHandler) List(c *fiber.Ctx) error {
 
 	return helper.SuccessList(c, "Successful fetching course data", courses, meta)
 }
+

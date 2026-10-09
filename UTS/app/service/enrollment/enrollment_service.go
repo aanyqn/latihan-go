@@ -47,8 +47,25 @@ func (e *EnrollmentService) Create(ctx context.Context, req model.CreateEnrollme
 	return enrollment, nil
 }
 
-func (e *EnrollmentService) Delete(ctx context.Context, id int) error {
-	err := e.enrollmentRepo.Delete(ctx, id)
+func (e *EnrollmentService) Delete(ctx context.Context, id int, userID int) error {
+	student, err := e.studentRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return helper.Forbidden("Bukan mahasiswa")
+	}
+
+	enrollment, err := e.enrollmentRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, helper.ErrNotFound) {
+			return helper.ErrNotFound
+		}
+		return err
+	}
+
+	if enrollment.StudentID != student.ID {
+		return helper.Forbidden("Tidak dapat menghapus KRS milik mahasiswa lain")
+	}
+
+	err = e.enrollmentRepo.Delete(ctx, id)
 	if err != nil {
 		if errors.Is(err, helper.ErrNotFound) {
 			return helper.ErrNotFound

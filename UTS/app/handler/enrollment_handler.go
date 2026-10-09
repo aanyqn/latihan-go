@@ -49,12 +49,17 @@ func (e *EnrollmentHandler) Delete(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized("Not authenticated")
+	}
+
 	id, valid := helper.ParamID(c)
 	if !valid {
 		return helper.BadRequest("ID must be valid!")
 	}
 
-	if err := e.svc.Delete(ctx, id); err != nil {
+	if err := e.svc.Delete(ctx, id, current.UserID); err != nil {
 		return helper.TranslateError(c, err, "Failed to delete enrollment")
 	}
 
