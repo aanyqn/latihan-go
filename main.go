@@ -4,8 +4,12 @@ import (
 	"context"
 	"latihan-fiber/app/handler"
 	"latihan-fiber/app/repository"
+
 	// "latihan-fiber/app/service/achievement"
 	"latihan-fiber/app/service/auth"
+	"latihan-fiber/app/service/course"
+	"latihan-fiber/app/service/portfolio"
+	"latihan-fiber/app/service/review"
 	"latihan-fiber/app/service/student"
 	"latihan-fiber/app/service/user"
 	"latihan-fiber/config"
@@ -35,17 +39,31 @@ func main() {
 
 	jwtSecret := config.GetEnv("JWT_SECRET", "")
 	if len(jwtSecret) < minSecretLength {
-		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek",
-			slog.Int("minimal_karakter", minSecretLength))
+		logger.Error("JWT_SECRET empty or too short",
+			slog.Int("min. character", minSecretLength))
 		os.Exit(1)
 	}
 
 	pool, err := database.NewPool(context.Background())
 	if err != nil {
-		logger.Error("gagal terhubung ke database", slog.String("error", err.Error()))
+		logger.Error("failed to connect database", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	defer pool.Close()
+
+	mongoClient, err := database.NewMongoClient(context.Background())
+	if err != nil {
+		logger.Error("failed to connect MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = mongoClient.Disconnect(ctx)
+	}()
+	mongoDB := mongoClient.Database(config.GetEnv("MONGO_DATABASE", "praktikum_backend"))
+
 	jwtManager := helper.NewJWTManager(
 		jwtSecret,
 		config.GetEnv("JWT_ISSUER", "praktikum-backend"),
@@ -63,22 +81,41 @@ func main() {
 
 	userRepository := repository.NewUserRepository(pool)
 	studentRepository := repository.NewStudentRepository(pool)
+	courseRepository := repository.NewCourseRepository(pool)
+	reviewRepository := repository.NewReviewRepository(mongoDB)
+	if err := reviewRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("Failed to make index mongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	portfolioRepository := repository.NewPortfolioRepository(mongoDB)
+	if err := portfolioRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("Failed to make portfolio index mongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	txManager := repository.NewTxManager(pool)
 	studentService := student.NewStudentService(studentRepository)
 	tokenRepository := repository.NewTokenRepository(pool)
 	userService := user.NewUserService(userRepository, permissions)
 	studentHandler := handler.NewStudentHandler(studentService, permissions)
+	courseService := course.NewCourseService(courseRepository, txManager)
+	reviewService := review.NewReviewService(reviewRepository, courseRepository, permissions)
+	portfolioService := portfolio.NewPortfolioService(portfolioRepository, studentRepository, permissions)
 
 	authService := auth.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour, permissions,
 	)
 	app := config.NewApp(logger, route.Dependencies{
-		Pool:           pool,
-		Permissions:    permissions,
-		JWT:            jwtManager,
-		UserService:    userService,
-		AuthService:    authService,
-		StudentHandler: studentHandler,
+		Pool:             pool,
+		Permissions:      permissions,
+		JWT:              jwtManager,
+		UserService:      userService,
+		AuthService:      authService,
+		StudentHandler:   studentHandler,
+		CourseService:    courseService,
+		Mongo:            mongoClient,
+		ReviewService:    reviewService,
+		PortfolioService: portfolioService,
 	})
 
 	port := config.GetEnv("APP_PORT", "3000")

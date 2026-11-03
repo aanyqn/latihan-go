@@ -27,6 +27,10 @@ type AppError struct {
 	cause   error
 }
 
+func NewError(status int, code, message string) *AppError {
+ return &AppError{Status: status, Code: code, Message: message}
+}
+
 func (e *AppError) Error() string {
 	if e.cause != nil {
 		return fmt.Sprintf("%s: %s: %v", e.Code, e.Message, e.cause)
